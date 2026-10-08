@@ -8,7 +8,23 @@ function toast(message,error=false){const e=$('#toast');e.textContent=message;e.
 async function api(path,body){const r=await fetch('/api/'+path,{method:body===undefined?'GET':'POST',headers:{'Content-Type':'application/json','X-B7-Token':token},body:body===undefined?undefined:JSON.stringify(body)});let data=await r.json();if(!r.ok)throw Error(typeof data.detail==='string'?data.detail:'Valor inválido. Confira os campos e limites.');return data;}
 function get(path){return path.split('.').reduce((o,k)=>o[k],cfg);}
 function set(path,val){let a=path.split('.'),o=cfg;for(const k of a.slice(0,-1))o=o[k];o[a.at(-1)]=val;}
-function bindFields(root=document){root.querySelectorAll('[data-field]').forEach(e=>{const p=e.dataset.field;if(e.type==='checkbox')e.checked=get(p);else e.value=get(p);e.onchange=()=>{if(!e.checkValidity()){e.reportValidity();return;}set(p,e.type==='checkbox'?e.checked:['number','range'].includes(e.type)?Number(e.value):e.value);$$(`[data-field="${p}"]`).filter(x=>x!==e).forEach(x=>{if(x.type==='checkbox')x.checked=e.checked;else x.value=e.value;});scheduleSave();};});}
+
+function syncSkinCards(){
+  const cur = cfg?.skin_preset || 'rei_coroa';
+  $$('.skin-card').forEach(c => {
+    const active = c.dataset.skin === cur;
+    c.classList.toggle('selected', active);
+    const b = c.querySelector('.btn-equip');
+    if (b) {
+      b.textContent = active ? 'Equipada ✓' : 'Equipar';
+      b.className = active ? 'primary btn-equip' : 'btn-equip';
+    }
+  });
+  $$('[data-field="skin_preset"]').forEach(s => { s.value = cur; });
+}
+
+function bindFields(root=document){
+  syncSkinCards();root.querySelectorAll('[data-field]').forEach(e=>{const p=e.dataset.field;if(e.type==='checkbox')e.checked=get(p);else e.value=get(p);e.onchange=()=>{if(!e.checkValidity()){e.reportValidity();return;}set(p,e.type==='checkbox'?e.checked:['number','range'].includes(e.type)?Number(e.value):e.value);$$(`[data-field="${p}"]`).filter(x=>x!==e).forEach(x=>{if(x.type==='checkbox')x.checked=e.checked;else x.value=e.value;});scheduleSave();};});}
 function scheduleSave(){$$('[data-description]').forEach(e=>e.textContent=description(e.dataset.description));dirty=true;$('#saved').textContent='Salvando…';clearTimeout(saveTimer);saveTimer=setTimeout(save,500);}
 async function save(){if(saving||!dirty)return;saving=true;dirty=false;try{await api('settings',cfg);$('#saved').textContent='Configurações salvas';}catch(e){$('#saved').textContent='Alteração não salva';toast(e.message,true);}finally{saving=false;if(dirty)scheduleSave();}}
 function options(selected){return actions.map(a=>`<option value="${a}" ${a===selected?'selected':''}>${names[a]||a} — ${description(a)}</option>`).join('');}
@@ -25,10 +41,23 @@ $('#diagnostic').textContent=`${s.fps} FPS · Fila: ${s.queue} · Eventos recebi
 const cat=$('#catalog');if(s.catalog.length){cat.replaceChildren();s.catalog.forEach(g=>{const row=document.createElement('div');row.textContent=`${g.name} · ID ${g.id} `;const b=document.createElement('button');b.textContent='Vincular';b.onclick=()=>{cfg.mappings.push({gift_id:g.id,gift_name:g.name,action:'BUILD'});mappingRows();scheduleSave();};row.append(b);cat.append(row);});}}
 function websocket(){const ws=new WebSocket(`ws://${location.host}/ws`);ws.onopen=()=>ws.send(JSON.stringify({token}));ws.onmessage=e=>update(JSON.parse(e.data));ws.onclose=()=>{setTimeout(websocket,1800);};ws.onerror=()=>{$('#connectionMessage').textContent='Painel reconectando ao jogo…';};}
 async function init(){try{token=(await api('session')).token;const state=await api('state');cfg=state.config;$('#username').value=cfg.username;buildForms();update(state);websocket();}catch(e){toast('Não foi possível acessar o jogo: '+e.message,true);}}
-$$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('active',x===b));$$('.page').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));$('#pageTitle').textContent={home:'Visão geral',game:'Configurar jogo',interactions:'Interações',tests:'Modo de teste'}[b.dataset.tab];});
+$$('nav button').forEach(b=>b.onclick=()=>{$$('nav button').forEach(x=>x.classList.toggle('active',x===b));$$('.page').forEach(x=>x.classList.toggle('active',x.id===b.dataset.tab));$('#pageTitle').textContent={home:'Visão geral',skins:'Skins do Personagem',game:'Configurar jogo',interactions:'Interações',tests:'Modo de teste'}[b.dataset.tab]||'Painel';});
 $$('[data-command]').forEach(b=>b.onclick=async()=>{try{await api('game/'+b.dataset.command,{});toast('Comando aplicado.');}catch(e){toast(e.message,true);}});
 $('#connect').onclick=async()=>{const b=$('#connect');b.disabled=true;try{await api('connect',{username:$('#username').value,key:$('#key').value});$('#key').value='';cfg.username=$('#username').value;cfg.mode='live';bindFields();toast('Conexão iniciada.');}catch(e){toast(e.message,true);}finally{b.disabled=false;}};
 $('#disconnect').onclick=async()=>{try{await api('disconnect',{});toast('Live desconectada.');}catch(e){toast(e.message,true);}};
 $('#drop').onclick=async()=>{try{toast((await api('test-disconnect',{})).message);}catch(e){toast(e.message,true);}};
 $('#addMapping').onclick=()=>{cfg.mappings.push({gift_id:'',gift_name:'',action:'BUILD'});mappingRows();};
 $$('[data-event]').forEach(b=>b.onclick=()=>simulate('BUILD',b.dataset.event));init();
+
+
+$$('.skin-card').forEach(c => {
+  c.onclick = (e) => {
+    const skin = c.dataset.skin;
+    if (skin && cfg) {
+      cfg.skin_preset = skin;
+      syncSkinCards();
+      save();
+      toast('Skin equipada: ' + (c.querySelector('h4')?.textContent || skin));
+    }
+  };
+});

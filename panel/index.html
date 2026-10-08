@@ -1,33 +1,377 @@
-<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>B7 • Voxel Live</title><link rel="icon" href="/assets/icon_BUILD.png"><link rel="stylesheet" href="/static/style.css"></head><body>
-<aside><a class="brand" href="/"><span class="brandmark">B7</span><span>GAMES<span class="brand-sub">INTERATIVOS</span></span></a><div class="project"><img src="/assets/icon_BUILD.png" alt=""><div>Voxel Live 2.5D<small>Estúdio de controle</small></div></div><nav><button class="active" data-tab="home"><span>◈</span> Início</button><button data-tab="game"><span>▦</span> Jogo</button><button data-tab="interactions"><span>↗</span> Interações</button><button data-tab="tests"><span>▷</span> Testes</button></nav><div class="aside-bottom"><span class="local-dot"></span> Executando no seu PC<small>BY: BRABO7X · v2.1 • 2.5D</small></div></aside>
-<main><header><div><span class="eyebrow">SEU ESTÚDIO INTERATIVO</span><h1 id="pageTitle">Visão geral</h1></div><div class="header-actions"><span id="saved">Configurações salvas</span><span class="badge" id="modeBadge">MODO TESTE</span></div></header>
-<section id="home" class="page active"><div class="hero-card"><div><span class="eyebrow">CONSTRUIR. DEFENDER. VENCER.</span><h2>A live faz parte<br>da construção.</h2><p>Inicie o jogo, conecte sua live e deixe<br>o público mudar a próxima rodada.</p><div class="buttons"><button class="primary" data-command="start">▶ Iniciar jogo</button><button data-command="pause">Ⅱ Pausar</button></div></div><div class="hero-art"><img src="/assets/icon_BUILD.png" alt="Bloco de ouro"><img src="/assets/diamond0.png" alt="Bloco de diamante"></div></div>
-<div class="stats"><div><small>Construção</small><strong id="progress">0%</strong><div class="meter"><i id="progressBar"></i></div></div><div><small>Vitórias</small><strong id="wins">0 / 10</strong><span id="round">Rodada 1</span></div><div><small>Partida</small><strong id="phase">Aguardando</strong><span id="blocks">0 blocos</span></div></div>
-<div class="grid-two"><article class="card"><div class="card-head"><h3>Conexão TikTok LIVE</h3><span id="connectionBadge" class="badge">OFFLINE</span></div><label>@ da live<input id="username" placeholder="seu_usuario" autocomplete="off"></label><label>Chave Euler<input id="key" type="password" placeholder="Cole sua chave aqui" autocomplete="new-password"></label><small id="keyHint">A chave fica protegida neste computador.</small><div class="buttons"><button class="primary" id="connect">Conectar</button><button id="disconnect">Desconectar</button></div><p id="connectionMessage" class="hint">Modo de teste disponível.</p></article><article class="card"><h3>Controles rápidos</h3><label>Modo de operação<select data-field="mode"><option value="test">Teste offline</option><option value="live">Live real</option></select></label><label>Controle do personagem<select data-field="control_mode"><option value="auto">Modo Automático (IA)</option><option value="manual">Modo Manual (Você joga)</option></select></label><label>Skin ativa<select data-field="skin_preset"><option value="default">Clássico Voxel (Steve)</option><option value="rock_lee">Rock Lee (Macacão Verde)</option><option value="alex">Alex Aventureira</option><option value="ninja">Ninja das Sombras</option><option value="neon">Cyberpunk Neon</option><option value="zombie">Zumbi Voxel</option><option value="custom">Personalizado</option></select></label><label>Blocos por segundo<input type="number" data-field="build_rate" min="0" max="80" step="0.5"></label><div class="buttons"><button data-command="restart">↻ Nova rodada</button><button class="quiet" data-command="reset">Zerar partida</button></div><div class="tip">No LIVE Studio ou OBS, capture a janela <b>B7 VOXEL LIVE</b>. Tecla <b>M</b> alterna rápido entre Automático e Manual.</div></article></div>
-<details class="card diagnostics"><summary>Diagnóstico</summary><p id="diagnostic"></p><p id="notice"></p><pre id="logs"></pre></details></section>
-<section id="game" class="page"><div class="section-intro"><h2>O ritmo da sua partida</h2><p>As alterações são salvas automaticamente. Alterar a grade reinicia a construção.</p></div>
-<article class="card"><h3>Personagem, Skins e Barreiras (2.5D)</h3>
-<div class="form-grid">
-<label>Modo de controle<select data-field="control_mode"><option value="auto">Modo Automático (IA)</option><option value="manual">Modo Manual (Jogador no teclado)</option></select></label>
-<label>Skin do personagem<select data-field="skin_preset"><option value="default">Clássico Voxel (Steve)</option><option value="rock_lee">Rock Lee (Macacão Verde & Faixas)</option><option value="alex">Alex Aventureira</option><option value="ninja">Ninja das Sombras</option><option value="neon">Cyberpunk Neon</option><option value="zombie">Zumbi Voxel</option><option value="custom">Personalizado (Cores abaixo)</option></select></label>
-<label style="display:flex;align-items:center;padding-top:24px;"><input type="checkbox" data-field="show_barriers"> Barreiras fixas na arena</label>
-</div>
-<details><summary>Paleta de cores personalizada da skin</summary>
-<div class="form-grid" style="margin-top:16px;">
-<label>Cabelo<input type="color" data-field="skin_colors.hair"></label>
-<label>Pele<input type="color" data-field="skin_colors.skin"></label>
-<label>Camisa / Macacão<input type="color" data-field="skin_colors.shirt"></label>
-<label>Calça / Pernas<input type="color" data-field="skin_colors.pants"></label>
-<label>Sapatos / Botas<input type="color" data-field="skin_colors.shoes"></label>
-<label>Detalhe / Faixas<input type="color" data-field="skin_colors.accent"></label>
-</div>
-</details>
-<div class="tip" style="margin-top:16px;">
-<b>🎮 Modo Manual:</b> Ande com <b>← / →</b> ou <b>A / D</b>, e pule com <b>↑ / W / Espaço</b>. O personagem coloca blocos fluidamente conforme avança pela construção!
-</div>
-</article>
-<article class="card"><h3>Construção e objetivo</h3><div class="form-grid"><label>Colunas<input data-field="columns" type="number" min="8" max="20"></label><label>Linhas<input data-field="rows" type="number" min="6" max="60"></label><label>Blocos por segundo<input data-field="build_rate" type="number" min="0" max="80" step="0.5"></label><label>Meta de vitórias<input data-field="goal" type="number" min="1" max="10000"></label><label>Defesa (segundos)<input data-field="defense_seconds" type="number" min="1" max="120"></label><label>Blocos extras<select data-field="pending_policy"><option value="repair">Reparar assim que houver espaço</option><option value="next_round">Guardar para a próxima rodada</option></select></label></div><div class="switches"><label><input type="checkbox" data-field="cancel_defense"> Cancelar defesa ao perder blocos</label><label><input type="checkbox" data-field="allow_negative"> Permitir vitórias negativas</label><label><input type="checkbox" data-field="auto_restart"> Reiniciar automaticamente ao bater a meta</label></div></article>
-<article class="card"><h3>Imagem e áudio</h3><div class="form-grid"><label>Resolução da janela<select data-field="resolution"><option>540x960</option><option>720x1280</option><option>1080x1920</option></select></label><label>Volume geral<input type="range" data-field="volume" min="0" max="1" step="0.05"></label><label>Volume dos efeitos<input type="range" data-field="effects_volume" min="0" max="1" step="0.05"></label></div><label class="check"><input type="checkbox" data-field="borderless"> Janela sem bordas (Esc para sair)</label><details><summary>Ajustes avançados de imagem</summary><div class="form-grid"><label>Suavidade da câmera<input type="number" data-field="camera_smoothing" min="0.5" max="10" step="0.5"></label><label>Intensidade do tremor<input type="range" data-field="shake" min="0" max="2" step="0.1"></label><label>Limite de partículas<input type="number" data-field="particles" min="0" max="1200" step="50"></label></div></details></article></section>
-<section id="interactions" class="page"><div class="section-intro"><h2>Cada presente muda o jogo</h2><p>Associe o ID real do presente a uma ação. Os valores abaixo são por unidade recebida.</p></div><article class="card"><div class="card-head"><h3>Presentes da live</h3><button id="addMapping">+ Vincular presente</button></div><div id="mappingRows"></div><p class="hint" id="mappingEmpty">Nenhum presente vinculado. Você pode usar o ID ou o nome exato.</p><details><summary>Presentes detectados nesta sessão</summary><div id="catalog" class="hint">Conecte uma live e receba um presente para ver o ID.</div></details></article><article class="card"><h3>Força das ações</h3><div id="amounts" class="action-grid"></div></article><article class="card"><h3>Outras interações</h3><p class="hint">Desativadas inicialmente. O intervalo limita repetições por participante.</p><div id="rules"></div></article></section>
-<section id="tests" class="page"><div class="section-intro"><h2>Experimente antes de entrar ao vivo</h2><p>O teste usa o mesmo processamento das interações reais. Inicie o jogo e selecione o modo Teste.</p></div><article class="card"><div class="form-grid"><label>Nome do participante<input id="testName" value="Bruno" maxlength="40"></label><label>Quantidade<input id="testCount" type="number" value="1" min="1" max="10000"></label><label>Foto de perfil (URL HTTPS)<input id="testAvatar" placeholder="https://…"></label></div><label class="check"><input id="testCombo" type="checkbox"> Simular combo acumulado e mensagem final repetida</label><div id="testActions" class="test-grid"></div><details><summary>Testar curtida, comentário e seguidor</summary><p class="hint">Ative a regra correspondente em Interações. A quantidade acima representa curtidas no teste de curtida.</p><label>Comentário<input id="testComment" value="construir" maxlength="200"></label><div class="buttons"><button data-event="like">Curtidas</button><button data-event="follow">Seguidor</button><button data-event="comment">Comentário</button><button data-event="share">Compartilhamento</button></div></details></article><article class="card"><div class="card-head"><div><h3>Resiliência da conexão</h3><p class="hint">Com live conectada, interrompe o transporte para testar a reconexão.</p></div><button id="drop">Testar desconexão</button></div></article></section>
-<footer>B7 GAMES INTERATIVOS <span>Voxel Live • Controle local</span></footer></main><div id="toast" role="status"></div><script src="/static/app.js"></script></body></html>
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>B7 • Voxel Live</title>
+  <link rel="icon" href="/assets/icon_BUILD.png">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<aside>
+  <a class="brand" href="/">
+    <span class="brandmark">B7</span>
+    <span>GAMES<span class="brand-sub">INTERATIVOS</span></span>
+  </a>
+  <div class="project">
+    <img src="/assets/icon_BUILD.png" alt="Bloco 2.5D">
+    <div>Voxel Live 2.5D<small>Estúdio de Controle</small></div>
+  </div>
+  <nav>
+    <button class="active" data-tab="home"><span>◈</span> Início</button>
+    <button data-tab="skins"><span>👕</span> Skins</button>
+    <button data-tab="game"><span>🎮</span> Jogo</button>
+    <button data-tab="interactions"><span>🎁</span> Interações</button>
+    <button data-tab="tests"><span>▷</span> Testes</button>
+  </nav>
+  <div class="aside-bottom">
+    <div><span class="local-dot"></span> Executando localmente</div>
+    <small>B7 VOXEL LIVE • PRETO & VERMELHO</small>
+  </div>
+</aside>
+
+<main>
+  <header>
+    <div>
+      <span class="eyebrow">PAINEL DE TRANSMISSÃO & CONTROLE</span>
+      <h1 id="pageTitle">Visão geral</h1>
+    </div>
+    <div class="header-actions">
+      <span id="saved">Salvo ✓</span>
+      <span class="badge" id="modeBadge">MODO TESTE</span>
+    </div>
+  </header>
+
+  <!-- ABA 1: INÍCIO -->
+  <section id="home" class="page active">
+    <div class="hero-card">
+      <div>
+        <span class="eyebrow">CONSTRUIR • DEFENDER • VENCER</span>
+        <h2>A sua Live comanda<br>a construção da torre.</h2>
+        <p>Inicie o jogo, conecte o TikTok e deixe os espectadores enviarem blocos e poderes.</p>
+        <div class="buttons">
+          <button class="primary" data-command="start">▶ Iniciar Partida</button>
+          <button data-command="pause">⏸ Pausar</button>
+          <button data-command="restart">↻ Nova Rodada</button>
+        </div>
+      </div>
+      <div class="hero-art">
+        <img src="/static/thumb_rei_coroa.png" alt="Personagem 3D">
+        <img src="/assets/icon_BUILD.png" alt="Bloco 2.5D">
+      </div>
+    </div>
+
+    <div class="stats">
+      <div>
+        <small>Progresso da Torre</small>
+        <strong id="progress">0%</strong>
+        <div class="meter"><i id="progressBar"></i></div>
+      </div>
+      <div>
+        <small>Placar de Vitórias</small>
+        <strong id="wins">0 / 10</strong>
+        <span id="round" style="color:#9ca3af;font-size:12px;">Rodada 1</span>
+      </div>
+      <div>
+        <small>Estado da Partida</small>
+        <strong id="phase">Aguardando</strong>
+        <span id="blocks" style="color:#ef4444;font-size:12px;">0 blocos</span>
+      </div>
+    </div>
+
+    <div class="grid-two">
+      <article class="card">
+        <div class="card-head">
+          <h3>Conexão TikTok LIVE</h3>
+          <span id="connectionBadge" class="badge">OFFLINE</span>
+        </div>
+        <label>@ da Live (TikTok)
+          <input id="username" placeholder="seu_usuario" autocomplete="off">
+        </label>
+        <label>Chave Euler
+          <input id="key" type="password" placeholder="Cole sua chave Euler aqui" autocomplete="new-password">
+        </label>
+        <small id="keyHint" class="hint">A chave fica protegida na sua máquina.</small>
+        <div class="buttons" style="margin-top:14px;">
+          <button class="primary" id="connect">Conectar Live</button>
+          <button id="disconnect">Desconectar</button>
+        </div>
+        <p id="connectionMessage" class="hint" style="margin-top:12px;">Modo de teste offline pronto para uso.</p>
+      </article>
+
+      <article class="card">
+        <h3>Controles Rápidos</h3>
+        <label>Modo de Operação
+          <select data-field="mode">
+            <option value="test">Teste Offline</option>
+            <option value="live">Live Real (TikTok)</option>
+          </select>
+        </label>
+        <label>Modo de Controle do Personagem
+          <select data-field="control_mode">
+            <option value="auto">Modo Automático (IA explora e sobe)</option>
+            <option value="manual">Modo Manual (Você joga no teclado)</option>
+          </select>
+        </label>
+        <label>Skin Ativa
+          <select data-field="skin_preset" id="skinSelectQuick">
+            <option value="rei_coroa">Rei da Rosa & Coroa (Foto de Referência)</option>
+            <option value="pato_dourado">Pato Dourado Elegante</option>
+            <option value="aesthetic_boy">Aesthetic Pastel Boy</option>
+            <option value="guerreiro_voxel">Guerreiro Voxel (Steve Moderno)</option>
+          </select>
+        </label>
+        <div class="tip">
+          <b>🎮 Atalho do Jogador:</b> Pressione <b>M</b> na janela do jogo para alternar instantaneamente entre Modo Manual e Automático!
+        </div>
+      </article>
+    </div>
+
+    <details class="card diagnostics">
+      <summary style="cursor:pointer;color:#9ca3af;font-size:13px;font-weight:bold;">Ver Diagnósticos & Logs</summary>
+      <p id="diagnostic" style="color:#ef4444;margin-top:10px;"></p>
+      <p id="notice" style="color:#22c55e;"></p>
+      <pre id="logs" style="background:#090a0d;border:1px solid #1f212a;padding:12px;border-radius:6px;font-size:11px;max-height:160px;overflow-y:auto;color:#9ca3af;"></pre>
+    </details>
+  </section>
+
+  <!-- ABA 2: SKINS -->
+  <section id="skins" class="page">
+    <div class="section-intro">
+      <h2>Skins do Personagem (2.5D Isométrico)</h2>
+      <p>Skins originais renderizadas em 3/4 frontal com coroa, rosa e terno conforme a referência. Selecione a skin desejada com um clique:</p>
+    </div>
+
+    <div class="skins-gallery" id="skinsGallery">
+      <div class="skin-card" data-skin="rei_coroa">
+        <span class="badge-selected">EQUIPADA</span>
+        <div class="skin-thumb-wrapper">
+          <img src="/static/thumb_rei_coroa.png" alt="Rei da Rosa">
+        </div>
+        <h4>Rei da Rosa & Coroa</h4>
+        <p>Coroa de ouro, rosa no rosto, terno escuro com gravata vermelha e rosas no braço.</p>
+        <button class="primary btn-equip">Equipar</button>
+      </div>
+
+      <div class="skin-card" data-skin="pato_dourado">
+        <span class="badge-selected">EQUIPADA</span>
+        <div class="skin-thumb-wrapper">
+          <img src="/static/thumb_pato_dourado.png" alt="Pato Dourado">
+        </div>
+        <h4>Pato Elegante</h4>
+        <p>Pato amarelo estiloso com smoking preto e gravata borboleta.</p>
+        <button class="btn-equip">Equipar</button>
+      </div>
+
+      <div class="skin-card" data-skin="aesthetic_boy">
+        <span class="badge-selected">EQUIPADA</span>
+        <div class="skin-thumb-wrapper">
+          <img src="/static/thumb_aesthetic_boy.png" alt="Aesthetic Boy">
+        </div>
+        <h4>Aesthetic Pastel</h4>
+        <p>Personagem estilo anime com tons suaves e roupas modernas.</p>
+        <button class="btn-equip">Equipar</button>
+      </div>
+
+      <div class="skin-card" data-skin="guerreiro_voxel">
+        <span class="badge-selected">EQUIPADA</span>
+        <div class="skin-thumb-wrapper">
+          <img src="/static/thumb_guerreiro_voxel.png" alt="Guerreiro Voxel">
+        </div>
+        <h4>Guerreiro Voxel</h4>
+        <p>Guerreiro aventureiro clássico com camisa ciano e detalhes de armadura.</p>
+        <button class="btn-equip">Equipar</button>
+      </div>
+    </div>
+
+    <div class="tip">
+      <b>🧱 Bloco na Mão:</b> Ao colocar blocos, o personagem segura dinamicamente na mão uma miniatura do mesmo bloco que está sendo construído (terra/grama, pedra ou diamante)!
+    </div>
+  </section>
+
+  <!-- ABA 3: JOGO & ARENA -->
+  <section id="game" class="page">
+    <div class="section-intro">
+      <h2>Regras, Jogabilidade & Visual</h2>
+      <p>Configure a arena, o modo de controle do jogador e os elementos visuais na tela.</p>
+    </div>
+
+    <article class="card">
+      <h3>🎮 Jogabilidade & Visibilidade</h3>
+      <div class="form-grid">
+        <label>Modo de Controle
+          <select data-field="control_mode">
+            <option value="auto">Modo Automático (IA)</option>
+            <option value="manual">Modo Manual (Jogador no teclado)</option>
+          </select>
+        </label>
+        <label>Skin Selecionada
+          <select data-field="skin_preset">
+            <option value="rei_coroa">Rei da Rosa & Coroa</option>
+            <option value="pato_dourado">Pato Dourado</option>
+            <option value="aesthetic_boy">Aesthetic Pastel</option>
+            <option value="guerreiro_voxel">Guerreiro Voxel</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="switches" style="margin-top:16px;">
+        <label class="check">
+          <input type="checkbox" data-field="show_supporter_avatar">
+          <b>Mostrar foto de perfil de quem ajudou</b> (Exibe o avatar do apoiador na notificação e nas ações)
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="show_barriers">
+          <b>Barreiras fixas na arena</b> (Pilares 2.5D com sinalizadores e faixas zebradas fixadas na tela)
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="show_thought_bubble">
+          <b>Balão de presentes/ação sobre o personagem</b>
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="show_thought_bubble_manual">
+          <b>Exibir balão no modo manual</b> (Deixe desmarcado para visão 100% limpa ao jogar)
+        </label>
+      </div>
+
+      <div class="tip" style="margin-top:16px;">
+        <b>⌨️ Como jogar no Modo Manual:</b><br>
+        • Mover para os lados: <b>← / →</b> ou <b>A / D</b><br>
+        • Pular: <b>↑ / W / Barra de Espaço</b><br>
+        • O personagem posiciona os blocos automaticamente sob os pés e avança enquanto você anda!
+      </div>
+    </article>
+
+    <article class="card">
+      <h3>Construção e Metas da Live</h3>
+      <div class="form-grid">
+        <label>Colunas da Arena
+          <input data-field="columns" type="number" min="8" max="20">
+        </label>
+        <label>Linhas (Altura Máxima)
+          <input data-field="rows" type="number" min="6" max="60">
+        </label>
+        <label>Blocos por Segundo (Velocidade)
+          <input data-field="build_rate" type="number" min="0" max="80" step="0.5">
+        </label>
+        <label>Meta de Vitórias
+          <input data-field="goal" type="number" min="1" max="10000">
+        </label>
+        <label>Tempo de Defesa (segundos)
+          <input data-field="defense_seconds" type="number" min="1" max="120">
+        </label>
+        <label>Resolução da Janela
+          <select data-field="resolution">
+            <option>540x960</option>
+            <option>720x1280</option>
+            <option>1080x1920</option>
+          </select>
+        </label>
+      </div>
+      <div class="switches">
+        <label class="check">
+          <input type="checkbox" data-field="borderless"> Janela sem bordas (Fácil para capturar no OBS / TikTok LIVE Studio)
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="cancel_defense"> Cancelar defesa ao perder blocos
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="allow_negative"> Permitir vitórias negativas
+        </label>
+        <label class="check">
+          <input type="checkbox" data-field="auto_restart"> Reiniciar automaticamente ao bater a meta
+        </label>
+      </div>
+    </article>
+
+    <article class="card">
+      <h3>Áudio & Efeitos Sonoros</h3>
+      <div class="form-grid">
+        <label>Volume Geral
+          <input type="range" data-field="volume" min="0" max="1" step="0.05">
+        </label>
+        <label>Volume dos Efeitos e Poderes
+          <input type="range" data-field="effects_volume" min="0" max="1" step="0.05">
+        </label>
+      </div>
+    </article>
+  </section>
+
+  <!-- ABA 4: INTERAÇÕES -->
+  <section id="interactions" class="page">
+    <div class="section-intro">
+      <h2>Vínculo de Presentes do TikTok</h2>
+      <p>Associe o ID ou nome do presente às ações do jogo. Cada presente aciona a quantidade configurada.</p>
+    </div>
+    <article class="card">
+      <div class="card-head">
+        <h3>Presentes Mapeados</h3>
+        <button id="addMapping" class="primary">+ Vincular Presente</button>
+      </div>
+      <div id="mappingRows"></div>
+      <p class="hint" id="mappingEmpty">Nenhum presente vinculado ainda. Digite o ID ou nome exato do presente.</p>
+      <details style="margin-top:14px;">
+        <summary style="cursor:pointer;color:#ef4444;font-size:12px;font-weight:bold;">Presentes detectados na live</summary>
+        <div id="catalog" class="hint" style="margin-top:8px;">Conecte uma live para listar os presentes recebidos em tempo real.</div>
+      </details>
+    </article>
+    <article class="card">
+      <h3>Multiplicadores de Força por Ação</h3>
+      <div id="amounts" class="action-grid"></div>
+    </article>
+    <article class="card">
+      <h3>Outras Interações (Curtidas, Comentários, Compartilhamentos)</h3>
+      <div id="rules"></div>
+    </article>
+  </section>
+
+  <!-- ABA 5: TESTES -->
+  <section id="tests" class="page">
+    <div class="section-intro">
+      <h2>Simulador de Eventos & Poderes</h2>
+      <p>Teste como os presentes, poderes e a foto de perfil do apoiador aparecem no jogo antes de abrir a live.</p>
+    </div>
+    <article class="card">
+      <div class="form-grid">
+        <label>Nome do Apoiador
+          <input id="testName" value="Bruno" maxlength="40">
+        </label>
+        <label>Quantidade
+          <input id="testCount" type="number" value="1" min="1" max="10000">
+        </label>
+        <label>Foto de Perfil (URL da Imagem)
+          <input id="testAvatar" placeholder="https://..." value="https://p16-sign-va.tiktokcdn.com/tos-maliva-avt-0068/default.jpeg">
+        </label>
+      </div>
+      <label class="check" style="margin-top:14px;">
+        <input id="testCombo" type="checkbox"> Simular combo acumulado e sequência de presentes
+      </label>
+      <h3 style="margin-top:20px;">Clique em uma ação para disparar no jogo:</h3>
+      <div id="testActions" class="test-grid"></div>
+      <details style="margin-top:16px;">
+        <summary style="cursor:pointer;color:#9ca3af;font-size:12px;">Testar curtidas, comentários e seguidores</summary>
+        <div class="form-grid" style="margin-top:12px;">
+          <label>Comentário
+            <input id="testComment" value="construir" maxlength="200">
+          </label>
+        </div>
+        <div class="buttons" style="margin-top:10px;">
+          <button data-event="like">Simular Curtidas</button>
+          <button data-event="follow">Simular Seguidor</button>
+          <button data-event="comment">Simular Comentário</button>
+          <button data-event="share">Simular Compartilhamento</button>
+        </div>
+      </details>
+    </article>
+  </section>
+
+  <footer>
+    <div>B7 GAMES INTERATIVOS • <span>VOXEL LIVE 2.5D</span></div>
+    <div>Skins & Painel Red/Black</div>
+  </footer>
+</main>
+
+<div id="toast" role="status"></div>
+<script src="/static/app.js"></script>
+</body>
+</html>

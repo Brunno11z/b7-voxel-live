@@ -47,7 +47,7 @@ class Renderer:
         self.textures = {}
         self.icons = {}
         self.frames = {}
-        self.character = VoxelCharacter()
+        self.character = VoxelCharacter(getattr(self.world.cfg, 'skin_preset', 'rei_coroa'))
         self.gift_catalog = {}
 
         for mat in ['stone', 'gold', 'diamond', 'grass', 'dirt']:
@@ -175,8 +175,10 @@ class Renderer:
             self.toasts.append(effect)
             # Show floating gift emoji bubble above hero
             self.hero_bubble = {'action': effect['action'], 'start': self.time}
-            self.avatars.request(effect['avatar'])
-            self.avatars.request(effect['icon'])
+            if effect.get('avatar'):
+                self.avatars.request(effect['avatar'])
+            if effect.get('icon'):
+                self.avatars.request(effect['icon'])
             self.sound(effect['action'])
             if effect['action'] not in POSITIVE:
                 self.shake = 0.45
@@ -194,7 +196,9 @@ class Renderer:
         self.configure_display()
         # Synchronize skin configuration
         cfg = self.world.cfg
-        self.character.set_skin(getattr(cfg, 'skin_preset', 'default'), getattr(cfg, 'skin_colors', None))
+        self.character.set_skin(getattr(cfg, 'skin_preset', 'rei_coroa'))
+        if cfg.control_mode == 'manual' or not getattr(cfg, 'show_thought_bubble', True):
+            self.hero_bubble = None
         self.consume(router)
         if self.world.running:
             jumped, landed = self.hero.tick(dt, keys)
@@ -303,7 +307,8 @@ class Renderer:
 
         state = self.hero.state if self.world.running else 'idle'
         frame = int(self.hero.time * 12) % 12
-        sprite = self.character.frame(state, frame, self.hero.direction)
+        mat = getattr(self.hero, 'current_material', 0)
+        sprite = self.character.frame(state, frame, self.hero.direction, mat)
         self.canvas.blit(sprite, (self.hero.box.centerx - 77 + 6, g + self.hero.box.bottom - 139 - 5))
         for p in self.particles:
             pg.draw.rect(self.canvas, p[5], (p[0], p[1], p[6], p[6]))
@@ -366,7 +371,11 @@ class Renderer:
             self.canvas.blit(shadow_surf, (sx_pos, top_y))
 
     def draw_hero_bubble(self):
-        """Floating 2.5D gift emoji balloon above the hero (Lee) during actions."""
+        """Floating 2.5D gift emoji balloon above the hero during actions."""
+        cfg = self.world.cfg
+        if cfg.control_mode == 'manual' or not getattr(cfg, 'show_thought_bubble', True):
+            self.hero_bubble = None
+            return
         if not self.hero_bubble:
             return
         age = self.time - self.hero_bubble['start']
@@ -565,50 +574,76 @@ class Renderer:
             self.text('META CONCLUÍDA!' if w.wins >= cfg.goal else 'CONSTRUÇÃO DEFENDIDA!', 21, center=(360, 257))
             self.text('Nova rodada em instantes' if w.phase == 'celebrating' else 'Inicie pelo painel', 17, center=(360, 305))
 
-        # Compact 2.5D gift columns at the screen edges with 2.5D gift emoji badge!
+        # Compact 2.5D square button cards at the screen edges with black background
         for side, actions in enumerate([ACTIONS[:5], ACTIONS[5:]]):
-            cx = 40 if side == 0 else 680
+            cx = 44 if side == 0 else 676
             for i, key in enumerate(actions):
-                y = 351 + i * 102
+                cy = 351 + i * 102
+                bx = cx - 36
+                by = cy - 44
+                bw = 72
+                bh = 88
+
+                # Fundo preto para máxima visibilidade e estilo quadrado
+                pg.draw.rect(self.canvas, (10, 10, 14), (bx, by, bw, bh), border_radius=8)
+
+                # Borda estilizada (verde para positivas, vermelha para negativas)
+                border_col = (40, 200, 120) if side == 0 else (240, 50, 70)
+                pg.draw.rect(self.canvas, border_col, (bx, by, bw, bh), width=2, border_radius=8)
+
+                # 🎁 Emoji/Ícone do presente em cima da ação dentro do botão preto
+                gift_box = pg.transform.scale(self.gift_icon, (20, 20))
+                self.canvas.blit(gift_box, (cx - 10, by + 4))
+
+                # Ícone da ação centralizado dentro do botão quadrado
                 caption, url = gift_caption(key, cfg, self.gift_catalog)
                 self.avatars.request(url)
                 icon = self.avatar_surfaces.get(url, self.icons[key])
-                self.canvas.blit(pg.transform.scale(icon, (57, 57)), (cx - 28, y - 29))
-
-                # 🎁 Emoji/Ícone do presente em cima da ação
-                gift_box = pg.transform.scale(self.gift_icon, (24, 24))
-                self.canvas.blit(gift_box, (cx - 12, y - 48))
+                self.canvas.blit(pg.transform.scale(icon, (38, 38)), (cx - 19, by + 23))
 
                 bound = any(m.action == key for m in cfg.mappings)
                 title = caption if bound else LABELS.get(key, key)
                 if 10 not in self.fonts:
                     self.fonts[10] = pg.font.Font(str(self.assets / 'font.ttf'), 10)
                 font = self.fonts[10]
-                while len(title) > 1 and font.size(title)[0] > 76:
+                while len(title) > 1 and font.size(title)[0] > 64:
                     title = title[:-1]
-                self.text(title.upper(), 10, center=(cx, y + 33), outline=True)
+                self.text(title.upper(), 9, center=(cx, by + 65), outline=True)
                 sign = '+' if side == 0 else '-'
                 value = f'{sign}{cfg.amounts[key]}'
                 if key in ('WIN', 'LOSE'):
                     value += ' WIN'
-                self.text(value, 18, (112, 255, 139) if side == 0 else (255, 131, 147), center=(cx, y + 51), outline=True)
+                self.text(value, 13, (112, 255, 139) if side == 0 else (255, 131, 147), center=(cx, by + 78), outline=True)
 
         if self.current_toast:
             e = self.current_toast
             positive = e['action'] in POSITIVE
-            box = pg.Surface((510, 64), pg.SRCALPHA)
-            box.fill((12, 47, 61, 225))
-            self.canvas.blit(box, (105, 195))
-            pg.draw.rect(self.canvas, (93, 239, 156) if positive else (255, 125, 140), (105, 195, 5, 64))
-            avatar = self.avatar_surfaces.get(e['avatar'], self.default_avatar)
-            self.canvas.blit(pg.transform.scale(avatar, (46, 46)), (119, 204))
-            icon = self.avatar_surfaces.get(e['icon'], self.icons[e['action']])
-            self.canvas.blit(pg.transform.scale(icon, (39, 39)), (561, 217))
-            self.text(e['name'][:23] + f' ×{e["count"]}', 20, pos=(181, 204))
-            amount = f'{e["applied"]:+d} {e["unit"]}'
-            if e['pending']:
-                amount += f' · +{e["pending"]} na fila'
-            self.text(amount, 15, (174, 231, 222), pos=(181, 239))
+            box = pg.Surface((510, 66), pg.SRCALPHA)
+            box.fill((10, 10, 14, 235))
+            self.canvas.blit(box, (105, 194))
+            pg.draw.rect(self.canvas, (93, 239, 156) if positive else (255, 125, 140), (105, 194, 5, 66))
+            pg.draw.rect(self.canvas, (40, 45, 55), (105, 194, 510, 66), width=1, border_radius=4)
+            if getattr(cfg, 'show_supporter_avatar', True):
+                raw_avatar = self.avatar_surfaces.get(e['avatar'], self.default_avatar)
+                avatar = pg.transform.scale(raw_avatar, (48, 48))
+                mask = pg.Surface((48, 48), pg.SRCALPHA)
+                pg.draw.circle(mask, (255, 255, 255), (24, 24), 24)
+                masked_avatar = avatar.copy()
+                masked_avatar.blit(mask, (0, 0), special_flags=pg.BLEND_RGBA_MIN)
+                self.canvas.blit(masked_avatar, (118, 203))
+                pg.draw.circle(self.canvas, (255, 215, 60), (142, 227), 24, width=2)
+                text_x = 176
+            else:
+                text_x = 120
+            icon = self.avatar_surfaces.get(e.get('icon'), self.icons.get(e.get('action'), self.gift_icon))
+            self.canvas.blit(pg.transform.scale(icon, (39, 39)), (561, 207))
+            self.text(e['name'][:22] + f' ×{e["count"]}', 20, pos=(text_x, 203))
+            applied = e.get("applied", e.get("count", 1))
+            unit = e.get("unit", "blocos")
+            amount = f"{applied:+d} {unit}"
+            if e.get("pending"):
+                amount += f" · +{e['pending']} na fila"
+            self.text(amount, 15, (174, 231, 222), pos=(text_x, 236))
 
         if not w.running and w.phase != 'goal':
             self.text('INICIE PELO PAINEL' if w.count == 0 else 'PAUSADO', 19, center=(360, 855), outline=True)

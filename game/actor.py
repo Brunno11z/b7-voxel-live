@@ -26,6 +26,7 @@ class Explorer:
         self.coyote_timer = 0.0
         self.place_cooldown = 0.0
         self.last_col = -1
+        self.current_material = 0
 
     def rects(self, rect):
         c = self.cell
@@ -108,7 +109,9 @@ class Explorer:
                 ahead_col = current_col + self.direction
                 if 0 <= ahead_col < self.world.cfg.columns and self.world.heights[ahead_col] < self.world.heights[current_col]:
                     target_col = ahead_col
+                target_row = max(0, self.world.heights[target_col])
                 if self.world.place_block(target_col):
+                    self.current_material = self.world.material(target_row)
                     self.build_timer = 0.18
                     self.place_cooldown = 0.32
                     self.recover_new_blocks()

@@ -50,7 +50,10 @@ class Settings(BaseModel):
     resolution: Literal['540x960','720x1280','1080x1920'] = '720x1280'
     borderless: bool = False
     show_barriers: bool = True
-    skin_preset: Literal['default','rock_lee','alex','ninja','neon','zombie','custom'] = 'default'
+    show_supporter_avatar: bool = True
+    show_thought_bubble: bool = True
+    show_thought_bubble_manual: bool = False
+    skin_preset: Literal['rei_coroa','pato_dourado','aesthetic_boy','guerreiro_voxel'] = 'rei_coroa'
     skin_colors: dict[str, str] = Field(default_factory=lambda: DEFAULT_SKIN_COLORS.copy())
     camera_smoothing: float = Field(3, ge=0.5, le=10)
     shake: float = Field(0.7, ge=0, le=2)

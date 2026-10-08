@@ -1,0 +1,76 @@
+{
+  "username": "",
+  "mode": "test",
+  "control_mode": "auto",
+  "columns": 14,
+  "rows": 30,
+  "build_rate": 3.5,
+  "goal": 10,
+  "defense_seconds": 10.0,
+  "cancel_defense": true,
+  "allow_negative": true,
+  "pending_policy": "repair",
+  "auto_restart": true,
+  "resolution": "720x1280",
+  "borderless": false,
+  "show_barriers": true,
+  "skin_preset": "default",
+  "skin_colors": {
+    "hair": "#3e2a1b",
+    "skin": "#b17d59",
+    "shirt": "#0fa8ad",
+    "pants": "#3e3e8b",
+    "shoes": "#44474d",
+    "accent": "#e9e8de"
+  },
+  "camera_smoothing": 3.0,
+  "shake": 0.7,
+  "volume": 0.5,
+  "effects_volume": 0.8,
+  "particles": 400,
+  "amounts": {
+    "BUILD": 8,
+    "CHICKEN": 16,
+    "PHOENIX": 36,
+    "SKY_WHALE": 60,
+    "WIN": 1,
+    "ZAP": 3,
+    "TNT": 8,
+    "BLACK_HOLE": 12,
+    "TORNADO": 18,
+    "LOSE": 1
+  },
+  "mappings": [],
+  "likes": {
+    "enabled": false,
+    "action": "BUILD",
+    "amount": 1,
+    "threshold": 50,
+    "cooldown": 5.0,
+    "word": "construir"
+  },
+  "follows": {
+    "enabled": false,
+    "action": "BUILD",
+    "amount": 1,
+    "threshold": 50,
+    "cooldown": 5.0,
+    "word": "construir"
+  },
+  "comments": {
+    "enabled": false,
+    "action": "BUILD",
+    "amount": 1,
+    "threshold": 50,
+    "cooldown": 5.0,
+    "word": "construir"
+  },
+  "shares": {
+    "enabled": false,
+    "action": "BUILD",
+    "amount": 1,
+    "threshold": 50,
+    "cooldown": 5.0,
+    "word": "construir"
+  }
+}

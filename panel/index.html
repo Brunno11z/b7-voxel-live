@@ -37,6 +37,7 @@
       <h1 id="pageTitle">Visão geral</h1>
     </div>
     <div class="header-actions">
+      <button id="btnSaveConfig" class="save-btn-main">💾 Salvar Configurações</button>
       <span id="saved">Salvo ✓</span>
       <span class="badge" id="modeBadge">MODO TESTE</span>
     </div>
@@ -88,10 +89,16 @@
         <label>@ da Live (TikTok)
           <input id="username" placeholder="seu_usuario" autocomplete="off">
         </label>
-        <label>Chave Euler
-          <input id="key" type="password" placeholder="Cole sua chave Euler aqui" autocomplete="new-password">
+        <label>Chave Euler (API TikTok)
+          <div style="display:flex;gap:8px;">
+            <input id="key" type="password" placeholder="Cole sua chave Euler aqui" autocomplete="new-password" style="flex:1;">
+            <button id="btnSaveKey" type="button" style="white-space:nowrap;padding:8px 14px;background:#1e202a;border:1px solid #374151;color:#fff;border-radius:6px;cursor:pointer;">Salvar Chave</button>
+          </div>
         </label>
-        <small id="keyHint" class="hint">A chave fica protegida na sua máquina.</small>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px;">
+          <small id="keyHint" class="hint">A chave fica protegida na sua máquina.</small>
+          <small id="keySavedStatus" style="color:#22c55e;font-size:11px;font-weight:bold;display:none;">✓ Chave Euler Salva</small>
+        </div>
         <div class="buttons" style="margin-top:14px;">
           <button class="primary" id="connect">Conectar Live</button>
           <button id="disconnect">Desconectar</button>
@@ -186,6 +193,9 @@
 
     <div class="tip">
       <b>🧱 Bloco na Mão:</b> Ao colocar blocos, o personagem segura dinamicamente na mão uma miniatura do mesmo bloco que está sendo construído (terra/grama, pedra ou diamante)!
+    </div>
+    <div class="save-bar">
+      <button class="primary btnSaveTrigger">💾 Salvar Configurações</button>
     </div>
   </section>
 
@@ -295,6 +305,9 @@
         </label>
       </div>
     </article>
+    <div class="save-bar">
+      <button class="primary btnSaveTrigger">💾 Salvar Configurações</button>
+    </div>
   </section>
 
   <!-- ABA 4: INTERAÇÕES -->
@@ -323,6 +336,9 @@
       <h3>Outras Interações (Curtidas, Comentários, Compartilhamentos)</h3>
       <div id="rules"></div>
     </article>
+    <div class="save-bar">
+      <button class="primary btnSaveTrigger">💾 Salvar Configurações</button>
+    </div>
   </section>
 
   <!-- ABA 5: TESTES -->

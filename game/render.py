@@ -1,7 +1,7 @@
 import math, random, queue
 from collections import OrderedDict, deque
 import pygame as pg
-from configuration import ROOT, ACTIONS
+from configuration import ROOT, ACTIONS, DEFAULT_ACTION_BADGES
 from services.avatars import AvatarCache
 from game.actor import Explorer
 from game.voxel_character import VoxelCharacter
@@ -49,6 +49,7 @@ class Renderer:
         self.frames = {}
         self.character = VoxelCharacter(getattr(self.world.cfg, 'skin_preset', 'rei_coroa'))
         self.gift_catalog = {}
+        self.badge_surfaces = {}
 
         for mat in ['stone', 'gold', 'diamond', 'grass', 'dirt']:
             self.textures[mat] = [pg.image.load(str(self.assets / f'{mat}{i}.png')).convert_alpha() for i in range(4)]
@@ -87,6 +88,27 @@ class Renderer:
             pg.mixer.set_num_channels(12)
             for f in self.assets.glob('*.wav'):
                 self.sounds[f.stem] = pg.mixer.Sound(str(f))
+
+    def get_action_badge(self, key, cfg):
+        badge = (getattr(cfg, 'action_badges', None) or {}).get(key, '') or DEFAULT_ACTION_BADGES.get(key, '🎁')
+        badge = str(badge).strip()
+        if badge.startswith(('http://', 'https://')):
+            self.avatars.request(badge)
+            if badge in self.avatar_surfaces:
+                return pg.transform.scale(self.avatar_surfaces[badge], (24, 24))
+        if badge in self.badge_surfaces:
+            return self.badge_surfaces[badge]
+        try:
+            from PIL import Image, ImageDraw
+            im = Image.new('RGBA', (28, 28), (0, 0, 0, 0))
+            draw = ImageDraw.Draw(im)
+            draw.ellipse([0, 0, 27, 27], fill=(16, 16, 24, 240), outline=(255, 215, 60, 255), width=2)
+            draw.text((14, 13), badge[:2], fill=(255, 255, 255, 255), anchor="mm")
+            surf = pg.image.frombytes(im.tobytes(), im.size, 'RGBA')
+            self.badge_surfaces[badge] = surf
+            return surf
+        except Exception:
+            return pg.transform.scale(self.gift_icon, (24, 24))
 
     def configure_display(self):
         cfg = self.world.cfg
@@ -576,44 +598,47 @@ class Renderer:
 
         # Compact 2.5D square button cards at the screen edges with black background
         for side, actions in enumerate([ACTIONS[:5], ACTIONS[5:]]):
-            cx = 44 if side == 0 else 676
+            cx = 48 if side == 0 else 672
             for i, key in enumerate(actions):
                 cy = 351 + i * 102
-                bx = cx - 36
-                by = cy - 44
-                bw = 72
-                bh = 88
+                bw = 82
+                bh = 94
+                bx = cx - bw // 2
+                by = cy - bh // 2
 
-                # Fundo preto para máxima visibilidade e estilo quadrado
-                pg.draw.rect(self.canvas, (10, 10, 14), (bx, by, bw, bh), border_radius=8)
+                # Fundo preto para máxima visibilidade e contraste estilo botão quadrado
+                pg.draw.rect(self.canvas, (10, 10, 14), (bx, by, bw, bh), border_radius=10)
 
-                # Borda estilizada (verde para positivas, vermelha para negativas)
-                border_col = (40, 200, 120) if side == 0 else (240, 50, 70)
-                pg.draw.rect(self.canvas, border_col, (bx, by, bw, bh), width=2, border_radius=8)
+                # Borda estilizada neon (verde para positivas, vermelha para negativas)
+                border_col = (45, 220, 130) if side == 0 else (255, 65, 85)
+                pg.draw.rect(self.canvas, border_col, (bx, by, bw, bh), width=2, border_radius=10)
 
-                # 🎁 Emoji/Ícone do presente em cima da ação dentro do botão preto
-                gift_box = pg.transform.scale(self.gift_icon, (20, 20))
-                self.canvas.blit(gift_box, (cx - 10, by + 4))
+                # 🎁 Emoji/Foto customizada em cima da ação
+                badge_surf = self.get_action_badge(key, cfg)
+                bw_sz, bh_sz = badge_surf.get_size()
+                self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + 4))
 
-                # Ícone da ação centralizado dentro do botão quadrado
+                # Ícone 2.5D da ação centralizado dentro do botão quadrado
                 caption, url = gift_caption(key, cfg, self.gift_catalog)
                 self.avatars.request(url)
                 icon = self.avatar_surfaces.get(url, self.icons[key])
-                self.canvas.blit(pg.transform.scale(icon, (38, 38)), (cx - 19, by + 23))
+                self.canvas.blit(pg.transform.scale(icon, (38, 38)), (cx - 19, by + 28))
 
                 bound = any(m.action == key for m in cfg.mappings)
                 title = caption if bound else LABELS.get(key, key)
-                if 10 not in self.fonts:
-                    self.fonts[10] = pg.font.Font(str(self.assets / 'font.ttf'), 10)
-                font = self.fonts[10]
-                while len(title) > 1 and font.size(title)[0] > 64:
+                if 12 not in self.fonts:
+                    self.fonts[12] = pg.font.Font(str(self.assets / 'font.ttf'), 12)
+                font = self.fonts[12]
+                while len(title) > 1 and font.size(title)[0] > 74:
                     title = title[:-1]
-                self.text(title.upper(), 9, center=(cx, by + 65), outline=True)
+                # Texto do título bem legível com contorno escuro nítido
+                self.text(title.upper(), 11, center=(cx, by + 70), outline=True)
                 sign = '+' if side == 0 else '-'
                 value = f'{sign}{cfg.amounts[key]}'
                 if key in ('WIN', 'LOSE'):
                     value += ' WIN'
-                self.text(value, 13, (112, 255, 139) if side == 0 else (255, 131, 147), center=(cx, by + 78), outline=True)
+                # Valor bem destacado e nítido
+                self.text(value, 14, (120, 255, 150) if side == 0 else (255, 125, 140), center=(cx, by + 84), outline=True)
 
         if self.current_toast:
             e = self.current_toast

@@ -6,8 +6,21 @@ from pydantic import BaseModel, Field, ConfigDict
 
 ROOT = Path(__file__).resolve().parent
 ACTIONS = ['BUILD','CHICKEN','PHOENIX','SKY_WHALE','WIN','ZAP','TNT','BLACK_HOLE','TORNADO','LOSE']
-DEFAULT_AMOUNTS = dict(zip(ACTIONS,[8,16,36,60,1,3,8,12,18,1]))
+DEFAULT_AMOUNTS = dict(zip(ACTIONS, [8, 16, 36, 60, 1, 3, 8, 12, 18, 1]))
 Action = Literal['BUILD','CHICKEN','PHOENIX','SKY_WHALE','WIN','ZAP','TNT','BLACK_HOLE','TORNADO','LOSE']
+
+DEFAULT_ACTION_BADGES = {
+    'BUILD': '🧱',
+    'CHICKEN': '🐔',
+    'PHOENIX': '🦅',
+    'SKY_WHALE': '🐋',
+    'WIN': '🏆',
+    'ZAP': '⚡',
+    'TNT': '💣',
+    'BLACK_HOLE': '🕳️',
+    'TORNADO': '🌪️',
+    'LOSE': '💀'
+}
 
 DEFAULT_SKIN_COLORS = {
     'hair': '#3e2a1b',
@@ -61,6 +74,7 @@ class Settings(BaseModel):
     effects_volume: float = Field(0.8, ge=0, le=1)
     particles: int = Field(400, ge=0, le=1200)
     amounts: dict[Action, int] = Field(default_factory=lambda: DEFAULT_AMOUNTS.copy())
+    action_badges: dict[Action, str] = Field(default_factory=lambda: DEFAULT_ACTION_BADGES.copy())
     mappings: list[Mapping] = Field(default_factory=list, max_length=200)
     likes: Rule = Field(default_factory=Rule)
     follows: Rule = Field(default_factory=Rule)
@@ -68,21 +82,32 @@ class Settings(BaseModel):
     shares: Rule = Field(default_factory=Rule)
 
     def checked(self):
-        if set(self.amounts) != set(ACTIONS) or any(v<1 or v>10000 for v in self.amounts.values()):
+        if set(self.amounts) != set(ACTIONS) or any(v < 1 or v > 10000 for v in self.amounts.values()):
             raise ValueError('Quantidades: informe todas as ações, de 1 a 10000.')
-        ids=[m.gift_id for m in self.mappings if m.gift_id]
-        names=[m.gift_name.strip().casefold() for m in self.mappings if not m.gift_id]
-        if len(set(ids))!=len(ids) or len(set(names))!=len(names) or '' in names:
-            raise ValueError('Cada presente deve ter ID ou nome e não pode estar duplicado.')
+        # Ensure action badges contain all actions
+        for a in ACTIONS:
+            if a not in self.action_badges:
+                self.action_badges[a] = DEFAULT_ACTION_BADGES.get(a, '🎁')
+        # Only validate filled-in mappings; ignore completely blank items
+        non_empty = [m for m in self.mappings if m.gift_id.strip() or m.gift_name.strip()]
+        ids = [m.gift_id.strip() for m in non_empty if m.gift_id.strip()]
+        names = [m.gift_name.strip().casefold() for m in non_empty if not m.gift_id.strip() and m.gift_name.strip()]
+        if len(set(ids)) != len(ids):
+            raise ValueError('Existem presentes com IDs duplicados.')
+        if len(set(names)) != len(names):
+            raise ValueError('Existem presentes com nomes duplicados.')
         return self
 
 def atomic_json(path, data):
-    path=Path(path);path.parent.mkdir(parents=True,exist_ok=True)
-    temp=path.with_suffix('.tmp')
-    with temp.open('w',encoding='utf8') as f:
-        json.dump(data,f,ensure_ascii=False,indent=2);f.flush();os.fsync(f.fileno())
-    os.replace(temp,path)
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temp = path.with_suffix('.tmp')
+    with temp.open('w', encoding='utf8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=2)
+        f.flush()
+        os.fsync(f.fileno())
+    os.replace(temp, path)
 
 def load_settings(path=None):
-    path=Path(path or ROOT/'config/settings.json')
+    path = Path(path or ROOT / 'config/settings.json')
     return Settings.model_validate_json(path.read_text('utf8')).checked() if path.exists() else Settings()

@@ -615,29 +615,68 @@ class Renderer:
                 bw_sz, bh_sz = badge_surf.get_size()
                 self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + 3))
 
-                # Ícone da ação
+                # Icone central grande; rótulo e quantidade são separados para não colidirem
                 caption, url = gift_caption(key, cfg, self.gift_catalog)
                 self.avatars.request(url)
                 icon = self.avatar_surfaces.get(url, self.icons[key])
-                self.canvas.blit(pg.transform.scale(icon, (30, 30)), (cx - 15, by + 22))
+                self.canvas.blit(pg.transform.scale(icon, (32, 32)), (cx - 16, by + 21))
 
-                # Título da ação
+                # Nome real do presente, quebrado em duas linhas e sempre dentro do cartão
                 bound = any(m.action == key for m in cfg.mappings)
                 title = caption if bound else LABELS.get(key, key)
-                if 10 not in self.fonts:
-                    self.fonts[10] = pg.font.Font(str(self.assets / 'font.ttf'), 10)
-                font = self.fonts[10]
-                while len(title) > 1 and font.size(title)[0] > 60:
-                    title = title[:-1]
-                self.text(title.upper(), 9, center=(cx, by + 55), outline=True)
+                title = str(title).strip().upper()
+                if 9 not in self.fonts:
+                    self.fonts[9] = pg.font.Font(str(self.assets / 'font.ttf'), 9)
+                title_font = self.fonts[9]
+                max_width = bw - 8
+                if title_font.size(title)[0] > max_width:
+                    words = title.split()
+                    lines = []
+                    current = ''
+                    for word in words:
+                        candidate = f'{current} {word}'.strip()
+                        if title_font.size(candidate)[0] <= max_width:
+                            current = candidate
+                        elif current:
+                            lines.append(current)
+                            current = word
+                        else:
+                            # Nomes sem espaços: trunca de forma segura com reticências
+                            fitted = word
+                            while len(fitted) > 1 and title_font.size(fitted + '…')[0] > max_width:
+                                fitted = fitted[:-1]
+                            current = fitted + ('…' if fitted != word else '')
+                    if current:
+                        lines.append(current)
+                    if len(lines) > 2:
+                        lines = lines[:2]
+                        last = lines[1]
+                        while len(last) > 1 and title_font.size(last + '…')[0] > max_width:
+                            last = last[:-1]
+                        lines[1] = last + '…'
+                else:
+                    lines = [title]
 
-                # Valor (+8, +16, etc.)
+                # Fonte compacta e contorno de 1 px com sombra preta nítida
+                for line_index, line in enumerate(lines):
+                    text_surf = title_font.render(line, True, (255, 255, 255))
+                    outline = title_font.render(line, True, (0, 0, 0))
+                    crisp = pg.Surface((text_surf.get_width() + 2, text_surf.get_height() + 2), pg.SRCALPHA)
+                    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
+                        crisp.blit(outline, (dx, dy))
+                    crisp.blit(text_surf, (1, 1))
+                    self.canvas.blit(crisp, crisp.get_rect(center=(cx, by + 58 + line_index * 10)))
+
+                # Valor destacado, com espaçamento independente do nome
                 sign = '+' if side == 0 else '-'
                 value = f'{sign}{cfg.amounts[key]}'
                 if key in ('WIN', 'LOSE'):
                     value += ' WIN'
                 val_color = (112, 255, 139) if side == 0 else (255, 131, 147)
-                self.text(value, 11, val_color, center=(cx, by + 67), outline=True)
+                amount_font = self.fonts.get(11) or pg.font.Font(str(self.assets / 'font.ttf'), 11)
+                while len(value) > 1 and amount_font.size(value)[0] > max_width:
+                    value = value[:-1]
+                self.text(value, 11, val_color, center=(cx, by + 71), outline=True)
 
         # Toasts de apoiadores
         if self.current_toast and w.phase not in ('celebrating', 'goal', 'defending'):

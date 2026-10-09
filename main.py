@@ -75,7 +75,7 @@ def main():
                 elif event.type == pg.KEYDOWN:
                     if event.key == pg.K_ESCAPE:
                         runtime.alive = False
-                    elif event.key == pg.K_SPACE:
+                    elif event.key == pg.K_p:
                         runtime.world.running = not runtime.world.running
                     elif event.key == pg.K_m:
                         # Quick toggle between auto and manual control mode

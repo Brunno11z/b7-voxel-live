@@ -64,12 +64,19 @@ class Explorer:
         manual_jump = False
 
         if keys is not None and not auto_mode:
-            try:
-                manual_left = bool(keys.get(pg.K_LEFT) or keys.get(pg.K_a))
-                manual_right = bool(keys.get(pg.K_RIGHT) or keys.get(pg.K_d))
-                manual_jump = bool(keys.get(pg.K_UP) or keys.get(pg.K_w) or keys.get(pg.K_SPACE))
-            except Exception:
-                pass
+            def key_down(key):
+                # pg.key.get_pressed() returns a ScancodeWrapper, not a dict;
+                # keep dict support for deterministic tests and integrations.
+                try:
+                    if hasattr(keys, 'get'):
+                        return bool(keys.get(key, False))
+                    return bool(keys[key])
+                except (IndexError, KeyError, TypeError):
+                    return False
+
+            manual_left = key_down(pg.K_LEFT) or key_down(pg.K_a)
+            manual_right = key_down(pg.K_RIGHT) or key_down(pg.K_d)
+            manual_jump = key_down(pg.K_UP) or key_down(pg.K_w) or key_down(pg.K_SPACE)
 
         jumped = False
         landed = False

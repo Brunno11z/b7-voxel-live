@@ -41,6 +41,9 @@ class Renderer:
         self.display_config = None
         self.configure_display()
         pg.display.set_caption('B7 VOXEL LIVE')
+        self.font_cartoon_path = self.assets / 'font_cartoon.ttf'
+        self.font_default_path = self.assets / 'font.ttf'
+        self.font_path = self.font_cartoon_path if self.font_cartoon_path.exists() else self.font_default_path
         self.fonts = {}
         self.text_cache = OrderedDict()
         self.rng = random.Random(81)
@@ -85,10 +88,13 @@ class Renderer:
         self.last_sound = {}
         self.last_state = None
         self.tile_size = None
-        if pg.mixer.get_init():
-            pg.mixer.set_num_channels(12)
-            for f in self.assets.glob('*.wav'):
-                self.sounds[f.stem] = pg.mixer.Sound(str(f))
+        try:
+            if hasattr(pg, 'mixer') and pg.mixer and pg.mixer.get_init():
+                pg.mixer.set_num_channels(12)
+                for f in self.assets.glob('*.wav'):
+                    self.sounds[f.stem] = pg.mixer.Sound(str(f))
+        except (AttributeError, NotImplementedError, Exception):
+            pass
 
     def get_action_badge(self, key, cfg):
         badge = (getattr(cfg, 'action_badges', None) or {}).get(key, '') or DEFAULT_ACTION_BADGES.get(key, '🎁')
@@ -128,19 +134,31 @@ class Renderer:
             self.screen = pg.display.set_mode((w, h), pg.NOFRAME if cfg.borderless else pg.RESIZABLE)
             self.display_config = value
 
-    def text(self, text, size, color=(255, 255, 255), center=None, pos=None, outline=False):
+    def get_font(self, size):
+        if size not in self.fonts:
+            try:
+                self.fonts[size] = pg.font.Font(str(self.font_path), size)
+            except Exception:
+                self.fonts[size] = pg.font.Font(str(self.font_default_path), size)
+        return self.fonts[size]
+
+    def text(self, text, size, color=(255, 255, 255), center=None, pos=None, outline=False, outline_color=(0, 0, 0), outline_px=2):
         text = str(text)
-        key = (text, size, color, outline)
+        key = (text, size, color, outline, outline_color, outline_px)
         if key not in self.text_cache:
-            if size not in self.fonts:
-                self.fonts[size] = pg.font.Font(str(self.assets / 'font.ttf'), size)
-            surf = self.fonts[size].render(text, True, color)
+            font = self.get_font(size)
+            surf = font.render(text, True, color)
             if outline:
-                bg = pg.Surface((surf.get_width() + 4, surf.get_height() + 4), pg.SRCALPHA)
-                shadow = self.fonts[size].render(text, True, (24, 60, 71))
-                for dx, dy in [(0, 2), (4, 2), (2, 0), (2, 4)]:
-                    bg.blit(shadow, (dx, dy))
-                bg.blit(surf, (2, 2))
+                px = outline_px
+                w, h = surf.get_size()
+                bg = pg.Surface((w + px * 2, h + px * 2), pg.SRCALPHA)
+                stroke_surf = font.render(text, True, outline_color)
+                # Contorno contínuo estilo cartoon em todas as direções
+                for dx in range(-px, px + 1):
+                    for dy in range(-px, px + 1):
+                        if dx != 0 or dy != 0:
+                            bg.blit(stroke_surf, (dx + px, dy + px))
+                bg.blit(surf, (px, px))
                 surf = bg
             self.text_cache[key] = surf
             if len(self.text_cache) > 512:
@@ -561,7 +579,7 @@ class Renderer:
         color = (168, 56, 66) if w.wins < 0 else (202, 161, 35)
         pg.draw.rect(self.canvas, (255, 245, 173), (239, 69, 242, 61), border_radius=23)
         pg.draw.rect(self.canvas, color, (243, 72, 234, 54), border_radius=20)
-        self.text(f'VITÓRIAS {w.wins}/{cfg.goal}', 24, center=(360, 99))
+        self.text(f'VITÓRIAS {w.wins}/{cfg.goal}', 24, center=(360, 99), outline=True, outline_color=(50, 30, 10), outline_px=2)
 
         # Barra de Progresso
         pg.draw.rect(self.canvas, (41, 109, 130), (100, 151, 520, 29), border_radius=15)
@@ -576,109 +594,136 @@ class Renderer:
 
         if w.phase == 'defending':
             pg.draw.rect(self.canvas, (156, 43, 51), (219, 284, 282, 114), border_radius=12)
-            self.text('DEFENDA A CONSTRUÇÃO!', 17, center=(360, 308))
-            self.text(str(math.ceil(w.timer)), 44, center=(360, 348))
+            self.text('DEFENDA A CONSTRUÇÃO!', 17, center=(360, 308), outline=True, outline_px=2)
+            self.text(str(math.ceil(w.timer)), 44, center=(360, 348), outline=True, outline_px=2)
             self.text('SEGUNDOS', 12, center=(360, 379))
         elif w.phase in ('celebrating', 'goal'):
             pg.draw.rect(self.canvas, (28, 124, 106), (187, 226, 346, 110), border_radius=14)
             self.text('META CONCLUÍDA!' if w.wins >= cfg.goal else 'CONSTRUÇÃO DEFENDIDA!', 21, center=(360, 257))
             self.text('Nova rodada em instantes' if w.phase == 'celebrating' else 'Inicie pelo painel', 17, center=(360, 305))
 
-        # Cartões de Ações / Presentes (estilo b7_voxel_hud_actions_preview.png com botões quadrados, bordas neon e foto/emoji customizável)
-        for side, actions in enumerate([ACTIONS[:5], ACTIONS[5:]]):
-            cx = 40 if side == 0 else 680
-            bx = cx - 32
-            bw = 64
-            bh = 76
+        # Cartões de Ações / Presentes (com tamanho ajustável 0-100 e opção de ocultar para tela limpa)
+        show_cards = getattr(cfg, 'show_gift_cards', True)
+        card_scale_pct = getattr(cfg, 'gift_cards_scale', 100)
+        card_scale = max(0.0, min(1.0, card_scale_pct / 100.0))
 
-            for i, key in enumerate(actions):
-                by = 242 + i * 82
-                base_t = self.time * 0.5 + i * 0.15 + (0.5 if side == 1 else 0.0)
+        if show_cards and card_scale > 0.05:
+            base_bw = 64
+            base_bh = 76
+            bw = max(24, int(base_bw * card_scale))
+            bh = max(28, int(base_bh * card_scale))
 
-                # Fundo preto puro para máximo contraste
-                pg.draw.rect(self.canvas, (10, 12, 16), (bx, by, bw, bh), border_radius=10)
+                    # Cartões de Ações / Presentes (com tamanho ajustável 0-100, fonte cartoon e opção de ocultar para tela limpa)
+        show_cards = getattr(cfg, 'show_gift_cards', True)
+        card_scale_pct = getattr(cfg, 'gift_cards_scale', 100)
+        card_scale = max(0.0, min(1.0, card_scale_pct / 100.0))
 
-                # Contorno neon gamer com leve pulso RGB
-                rgb_r = int(128 + 127 * math.sin(base_t * math.tau))
-                rgb_g = int(128 + 127 * math.sin((base_t + 0.33) * math.tau))
-                rgb_b = int(128 + 127 * math.sin((base_t + 0.67) * math.tau))
-                border_color = (80, 240, 120) if side == 0 else (255, 75, 95)
-                neon_color = (
-                    (border_color[0] * 3 + rgb_r) // 4,
-                    (border_color[1] * 3 + rgb_g) // 4,
-                    (border_color[2] * 3 + rgb_b) // 4,
-                )
-                pg.draw.rect(self.canvas, neon_color, (bx, by, bw, bh), width=2, border_radius=10)
+        if show_cards and card_scale > 0.08:
+            base_bw = 64
+            base_bh = 76
+            bw = max(24, int(base_bw * card_scale))
+            bh = max(28, int(base_bh * card_scale))
+            spacing = max(bh + 6, int(82 * card_scale))
+            start_y = 242
 
-                # Badge / Emoji ou foto customizada no topo
-                badge_surf = self.get_action_badge(key, cfg)
-                bw_sz, bh_sz = badge_surf.get_size()
-                self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + 3))
+            title_pt = max(7, min(10, int(9 * card_scale)))
+            amount_pt = max(8, min(12, int(11 * card_scale)))
+            icon_sz = max(16, int(32 * card_scale))
+            badge_sz = max(14, int(22 * card_scale))
 
-                # Icone central grande; rótulo e quantidade são separados para não colidirem
-                caption, url = gift_caption(key, cfg, self.gift_catalog)
-                self.avatars.request(url)
-                icon = self.avatar_surfaces.get(url, self.icons[key])
-                self.canvas.blit(pg.transform.scale(icon, (32, 32)), (cx - 16, by + 21))
+            for side, actions in enumerate([ACTIONS[:5], ACTIONS[5:]]):
+                cx = 40 if side == 0 else 680
+                bx = cx - bw // 2
 
-                # Nome real do presente, quebrado em duas linhas e sempre dentro do cartão
-                bound = any(m.action == key for m in cfg.mappings)
-                title = caption if bound else LABELS.get(key, key)
-                title = str(title).strip().upper()
-                if 9 not in self.fonts:
-                    self.fonts[9] = pg.font.Font(str(self.assets / 'font.ttf'), 9)
-                title_font = self.fonts[9]
-                max_width = bw - 8
-                if title_font.size(title)[0] > max_width:
-                    words = title.split()
-                    lines = []
-                    current = ''
-                    for word in words:
-                        candidate = f'{current} {word}'.strip()
-                        if title_font.size(candidate)[0] <= max_width:
-                            current = candidate
-                        elif current:
+                for i, key in enumerate(actions):
+                    by = start_y + i * spacing
+                    base_t = self.time * 0.5 + i * 0.15 + (0.5 if side == 1 else 0.0)
+
+                    # Fundo preto puro para máximo contraste
+                    pg.draw.rect(self.canvas, (10, 12, 16), (bx, by, bw, bh), border_radius=max(3, int(10 * card_scale)))
+
+                    # Contorno neon gamer com leve pulso RGB
+                    rgb_r = int(128 + 127 * math.sin(base_t * math.tau))
+                    rgb_g = int(128 + 127 * math.sin((base_t + 0.33) * math.tau))
+                    rgb_b = int(128 + 127 * math.sin((base_t + 0.67) * math.tau))
+                    border_color = (80, 240, 120) if side == 0 else (255, 75, 95)
+                    neon_color = (
+                        (border_color[0] * 3 + rgb_r) // 4,
+                        (border_color[1] * 3 + rgb_g) // 4,
+                        (border_color[2] * 3 + rgb_b) // 4,
+                    )
+                    pg.draw.rect(self.canvas, neon_color, (bx, by, bw, bh), width=2, border_radius=max(3, int(10 * card_scale)))
+
+                    # Badge / Emoji ou foto customizada no topo
+                    badge_surf = self.get_action_badge(key, cfg)
+                    if badge_sz != 24:
+                        badge_surf = pg.transform.smoothscale(badge_surf, (badge_sz, badge_sz))
+                    bw_sz, bh_sz = badge_surf.get_size()
+                    self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + max(1, int(3 * card_scale))))
+
+                    # Ícone central grande
+                    caption, url = gift_caption(key, cfg, self.gift_catalog)
+                    self.avatars.request(url)
+                    icon = self.avatar_surfaces.get(url, self.icons[key])
+                    scaled_icon = pg.transform.smoothscale(icon, (icon_sz, icon_sz))
+                    icon_y = by + max(12, int(21 * card_scale))
+                    self.canvas.blit(scaled_icon, (cx - icon_sz // 2, icon_y))
+
+                    # Nome real do presente, com contorno cartoon destacado
+                    bound = any(m.action == key for m in cfg.mappings)
+                    title = caption if bound else LABELS.get(key, key)
+                    title = str(title).strip().upper()
+                    title_font = self.get_font(title_pt)
+                    max_width = bw - 6
+
+                    if title_font.size(title)[0] > max_width:
+                        words = title.split()
+                        lines = []
+                        current = ''
+                        for word in words:
+                            candidate = f'{current} {word}'.strip()
+                            if title_font.size(candidate)[0] <= max_width:
+                                current = candidate
+                            elif current:
+                                lines.append(current)
+                                current = word
+                            else:
+                                fitted = word
+                                while len(fitted) > 1 and title_font.size(fitted + '…')[0] > max_width:
+                                    fitted = fitted[:-1]
+                                current = fitted + ('…' if fitted != word else '')
+                        if current:
                             lines.append(current)
-                            current = word
-                        else:
-                            # Nomes sem espaços: trunca de forma segura com reticências
-                            fitted = word
-                            while len(fitted) > 1 and title_font.size(fitted + '…')[0] > max_width:
-                                fitted = fitted[:-1]
-                            current = fitted + ('…' if fitted != word else '')
-                    if current:
-                        lines.append(current)
-                    if len(lines) > 2:
-                        lines = lines[:2]
-                        last = lines[1]
-                        while len(last) > 1 and title_font.size(last + '…')[0] > max_width:
-                            last = last[:-1]
-                        lines[1] = last + '…'
-                else:
-                    lines = [title]
+                        if len(lines) > 2:
+                            lines = lines[:2]
+                            last = lines[1]
+                            while len(last) > 1 and title_font.size(last + '…')[0] > max_width:
+                                last = last[:-1]
+                            lines[1] = last + '…'
+                    else:
+                        lines = [title]
 
-                # Fonte compacta e contorno de 1 px com sombra preta nítida
-                for line_index, line in enumerate(lines):
-                    text_surf = title_font.render(line, True, (255, 255, 255))
-                    outline = title_font.render(line, True, (0, 0, 0))
-                    crisp = pg.Surface((text_surf.get_width() + 2, text_surf.get_height() + 2), pg.SRCALPHA)
-                    for dx, dy in ((0, 1), (2, 1), (1, 0), (1, 2)):
-                        crisp.blit(outline, (dx, dy))
-                    crisp.blit(text_surf, (1, 1))
-                    self.canvas.blit(crisp, crisp.get_rect(center=(cx, by + 58 + line_index * 10)))
+                    # Texto do título com contorno cartoon preto reforçado
+                    title_start_y = by + max(28, int(57 * card_scale))
+                    line_step = max(7, int(9 * card_scale))
+                    for line_index, line in enumerate(lines):
+                        ty = title_start_y + line_index * line_step
+                        if ty < by + bh - 10:
+                            self.text(line, title_pt, (255, 255, 255), center=(cx, ty), outline=True, outline_color=(0, 0, 0), outline_px=1)
 
-                # Valor destacado, com espaçamento independente do nome
-                sign = '+' if side == 0 else '-'
-                value = f'{sign}{cfg.amounts[key]}'
-                if key in ('WIN', 'LOSE'):
-                    value += ' WIN'
-                val_color = (112, 255, 139) if side == 0 else (255, 131, 147)
-                amount_font = self.fonts.get(11) or pg.font.Font(str(self.assets / 'font.ttf'), 11)
-                while len(value) > 1 and amount_font.size(value)[0] > max_width:
-                    value = value[:-1]
-                self.text(value, 11, val_color, center=(cx, by + 71), outline=True)
+                    # Valor destacado com contorno nítido
+                    sign = '+' if side == 0 else '-'
+                    value = f'{sign}{cfg.amounts[key]}'
+                    if key in ('WIN', 'LOSE'):
+                        value += ' WIN'
+                    val_color = (112, 255, 139) if side == 0 else (255, 131, 147)
+                    amount_font = self.get_font(amount_pt)
+                    while len(value) > 1 and amount_font.size(value)[0] > max_width:
+                        value = value[:-1]
+                    val_y = by + bh - max(5, int(7 * card_scale))
+                    self.text(value, amount_pt, val_color, center=(cx, val_y), outline=True, outline_color=(0, 0, 0), outline_px=2)
 
-        # Toasts de apoiadores
+# Toasts de apoiadores
         if self.current_toast and w.phase not in ('celebrating', 'goal', 'defending'):
             e = self.current_toast
             positive = e['action'] in POSITIVE
@@ -744,7 +789,9 @@ class Renderer:
             self.draw_screen_text('A/D / Setas : Mover', 12, (220, 230, 240), center=((ox - 4) // 2, 165))
             self.draw_screen_text('Espaço / Cima : Pular', 12, (220, 230, 240), center=((ox - 4) // 2, 190))
             self.draw_screen_text('M : Alternar Modo', 12, (220, 230, 240), center=((ox - 4) // 2, 215))
-            self.draw_screen_text('Construção ao passar/pular', 11, (255, 215, 80), center=((ox - 4) // 2, 250))
+            self.draw_screen_text('H : Ocultar Presentes', 12, (220, 230, 240), center=((ox - 4) // 2, 240))
+            self.draw_screen_text('P : Pausar Jogo', 12, (220, 230, 240), center=((ox - 4) // 2, 265))
+            self.draw_screen_text('Construção ao passar/pular', 11, (255, 215, 80), center=((ox - 4) // 2, 300))
 
             # Painel direito
             rx = ox + tw + 4
@@ -766,9 +813,7 @@ class Renderer:
     def draw_screen_text(self, text, size, color, center):
         key = (f'screen_{text}', size, color)
         if key not in self.text_cache:
-            if size not in self.fonts:
-                self.fonts[size] = pg.font.Font(str(self.assets / 'font.ttf'), size)
-            self.text_cache[key] = self.fonts[size].render(str(text), True, color)
+            self.text_cache[key] = self.get_font(size).render(str(text), True, color)
         surf = self.text_cache[key]
         self.screen.blit(surf, (center[0] - surf.get_width() // 2, center[1] - surf.get_height() // 2))
 

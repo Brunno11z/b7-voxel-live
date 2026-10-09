@@ -54,6 +54,7 @@
           <button class="primary" data-command="start">▶ Iniciar Partida</button>
           <button data-command="pause">⏸ Pausar</button>
           <button data-command="restart">↻ Nova Rodada</button>
+          <button id="btnToggleCleanScreen" type="button" class="clean-toggle-btn" style="background:#1e202a;border:1px solid #3b4252;color:#f8fafc;">👁️ Ocultar Presentes (Tela Limpa)</button>
         </div>
       </div>
       <div class="hero-art">
@@ -225,7 +226,24 @@
         </label>
       </div>
 
+      <div class="form-grid" style="margin-top:16px;">
+        <label>Tamanho dos Botões de Presentes (0 a 100)
+          <div style="display:flex;align-items:center;gap:12px;margin-top:6px;">
+            <input type="range" min="0" max="100" value="100" data-field="gift_cards_scale" style="flex:1;">
+            <span id="giftCardsScaleVal" style="min-width:40px;font-weight:bold;color:#ef4444;">100%</span>
+          </div>
+        </label>
+        <label style="display:flex;flex-direction:column;justify-content:center;">
+          <span style="font-size:13px;color:#94a3b8;margin-bottom:6px;">Exibição dos Presentes na Arena</span>
+          <button id="btnToggleGiftCards" type="button" class="primary" style="padding:10px 16px;font-size:13px;">👁️ Ocultar Painel de Presentes (Tela Limpa)</button>
+        </label>
+      </div>
+
       <div class="switches" style="margin-top:16px;">
+        <label class="check">
+          <input type="checkbox" data-field="show_gift_cards">
+          <b>Exibir cartões de presentes no jogo</b> (Desmarque ou use o botão acima para deixar a tela limpa)
+        </label>
         <label class="check">
           <input type="checkbox" data-field="show_supporter_avatar">
           <b>Mostrar foto de perfil de quem ajudou</b> (Exibe o avatar do apoiador na notificação e nas ações)

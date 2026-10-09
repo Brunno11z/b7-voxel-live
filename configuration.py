@@ -61,7 +61,9 @@ class Settings(BaseModel):
     pending_policy: Literal['repair','next_round'] = 'repair'
     auto_restart: bool = True
     resolution: Literal['1280x720', '1920x1080', '1600x900', '960x540', '720x1280', '540x960', '1080x1920'] = '1280x720'
-    borderless: bool = False
+    borderless: bool = True
+    show_gift_cards: bool = True
+    gift_cards_scale: int = Field(100, ge=0, le=100)
     show_barriers: bool = True
     show_supporter_avatar: bool = True
     show_thought_bubble: bool = True

@@ -101,6 +101,7 @@ function equipSkin(skin) {
 
 function bindFields(root = document) {
   syncSkinCards();
+  updateCardsUI();
   root.querySelectorAll('[data-field]').forEach(e => {
     const p = e.dataset.field;
     if (e.type === 'checkbox') e.checked = !!get(p);
@@ -119,6 +120,9 @@ function bindFields(root = document) {
       });
       if (p === 'skin_preset') {
         syncSkinCards();
+      }
+      if (p === 'gift_cards_scale' || p === 'show_gift_cards') {
+        updateCardsUI();
       }
       scheduleSave();
     };
@@ -535,6 +539,42 @@ $('#addMapping').onclick = () => {
 $$('[data-event]').forEach(b => {
   b.onclick = () => simulate('BUILD', b.dataset.event);
 });
+
+function updateCardsUI() {
+  const show = cfg && cfg.show_gift_cards !== false;
+  const scale = (cfg && typeof cfg.gift_cards_scale === 'number') ? cfg.gift_cards_scale : 100;
+  const lbl = document.getElementById('giftCardsScaleVal');
+  if (lbl) lbl.textContent = scale + '%';
+
+  const txt = show ? '👁️ Ocultar Presentes (Tela Limpa)' : '👁️ Exibir Presentes na Arena';
+  const b1 = document.getElementById('btnToggleCleanScreen');
+  const b2 = document.getElementById('btnToggleGiftCards');
+  if (b1) b1.textContent = txt;
+  if (b2) b2.textContent = txt;
+}
+
+function toggleGiftCards() {
+  const current = !cfg || cfg.show_gift_cards !== false;
+  set('show_gift_cards', !current);
+  document.querySelectorAll('[data-field="show_gift_cards"]').forEach(function(e) { e.checked = !current; });
+  updateCardsUI();
+  scheduleSave();
+  toast(!current ? 'Painel de presentes visível na arena.' : 'Tela limpa: presentes ocultados.');
+}
+
+// Card size and clean screen bindings
+var bToggle1 = document.getElementById('btnToggleCleanScreen');
+if (bToggle1) bToggle1.onclick = toggleGiftCards;
+var bToggle2 = document.getElementById('btnToggleGiftCards');
+if (bToggle2) bToggle2.onclick = toggleGiftCards;
+
+var sliderScale = document.querySelector('[data-field="gift_cards_scale"]');
+if (sliderScale) {
+  sliderScale.addEventListener('input', function() {
+    var lbl = document.getElementById('giftCardsScaleVal');
+    if (lbl) lbl.textContent = sliderScale.value + '%';
+  });
+}
 
 // Initialize app
 init();

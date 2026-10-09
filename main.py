@@ -81,6 +81,10 @@ def main():
                         # Quick toggle between auto and manual control mode
                         runtime.world.cfg.control_mode = 'manual' if runtime.world.cfg.control_mode == 'auto' else 'auto'
                         runtime.save_settings()
+                    elif event.key == pg.K_h:
+                        # Alterna visibilidade dos cartões de presentes (tela limpa)
+                        runtime.world.cfg.show_gift_cards = not getattr(runtime.world.cfg, 'show_gift_cards', True)
+                        runtime.save_settings()
                 elif event.type == pg.VIDEORESIZE:
                     if not runtime.world.cfg.borderless:
                         renderer.screen = pg.display.set_mode((event.w, event.h), pg.RESIZABLE)

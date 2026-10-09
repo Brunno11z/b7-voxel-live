@@ -1,6 +1,11 @@
 import math, random
 import pygame as pg
 
+try:
+    FRect = getattr(pg, "FRect", pg.Rect)
+except AttributeError:
+    FRect = pg.Rect
+
 SCENARIO_LEFT = 52
 SCENARIO_WIDTH = 616
 SCENARIO_RIGHT = SCENARIO_LEFT + SCENARIO_WIDTH
@@ -16,7 +21,7 @@ class Explorer:
         return SCENARIO_WIDTH / self.world.cfg.columns
 
     def reset(self):
-        self.box = pg.FRect(305, -100, 30, 94)
+        self.box = FRect(305, -100, 30, 94)
         self.vx = 0.0
         self.vy = 0.0
         self.direction = 1
@@ -40,7 +45,7 @@ class Explorer:
         hi = min(self.world.cfg.columns, int((rect.right - left) // c) + 2)
         low = max(0, int(-rect.bottom // c) - 1)
         high = min(self.world.cfg.rows, int(-rect.top // c) + 2)
-        return [pg.FRect(left + x * c, -(y + 1) * c, c, c) for x in range(lo, hi) for y in range(low, high) if (x, y) in self.world.blocks]
+        return [FRect(left + x * c, -(y + 1) * c, c, c) for x in range(lo, hi) for y in range(low, high) if (x, y) in self.world.blocks]
 
     def recover_new_blocks(self):
         # Construction can appear below the feet: push to the highest overlapping surface.
@@ -123,7 +128,7 @@ class Explorer:
 
             ahead = self.box.move(self.direction * 26, 0)
             obstacle = any(ahead.colliderect(r) for r in self.rects(ahead))
-            probe = pg.FRect(self.box.centerx + self.direction * 40, self.box.bottom, 10, 12)
+            probe = FRect(self.box.centerx + self.direction * 40, self.box.bottom, 10, 12)
             ledge = not any(probe.colliderect(r) for r in self.rects(probe)) and self.box.bottom < -1
 
             if self.grounded and not self.cooldown and (obstacle or ledge or self.rng.random() < dt * 0.5):
@@ -146,7 +151,7 @@ class Explorer:
                     self.box.left = r.right
                 self.vx = 0.0
 
-        self.box.clamp_ip(pg.FRect(SCENARIO_LEFT, -10000, SCENARIO_WIDTH, 20000))
+        self.box.clamp_ip(FRect(SCENARIO_LEFT, -10000, SCENARIO_WIDTH, 20000))
         if abs(self.box.x - oldx) < 0.1 and auto_mode:
             self.stuck += dt
         else:

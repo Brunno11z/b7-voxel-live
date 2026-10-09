@@ -81,6 +81,9 @@ def main():
                         # Quick toggle between auto and manual control mode
                         runtime.world.cfg.control_mode = 'manual' if runtime.world.cfg.control_mode == 'auto' else 'auto'
                         runtime.save_settings()
+                elif event.type == pg.VIDEORESIZE:
+                    if not runtime.world.cfg.borderless:
+                        renderer.screen = pg.display.set_mode((event.w, event.h), pg.RESIZABLE)
 
             # Poll keyboard state for fluid manual control
             keys = pg.key.get_pressed()

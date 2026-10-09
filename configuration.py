@@ -60,7 +60,7 @@ class Settings(BaseModel):
     allow_negative: bool = True
     pending_policy: Literal['repair','next_round'] = 'repair'
     auto_restart: bool = True
-    resolution: Literal['540x960','720x1280','1080x1920'] = '720x1280'
+    resolution: Literal['405x720','450x800','540x960','720x1280','1080x1920'] = '540x960'
     borderless: bool = False
     show_barriers: bool = True
     show_supporter_avatar: bool = True

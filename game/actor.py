@@ -1,6 +1,10 @@
 import math, random
 import pygame as pg
 
+SCENARIO_LEFT = 94
+SCENARIO_WIDTH = 532
+SCENARIO_RIGHT = SCENARIO_LEFT + SCENARIO_WIDTH
+
 class Explorer:
     def __init__(self, world):
         self.world = world
@@ -9,10 +13,10 @@ class Explorer:
 
     @property
     def cell(self):
-        return 616 / self.world.cfg.columns
+        return SCENARIO_WIDTH / self.world.cfg.columns
 
     def reset(self):
-        self.box = pg.FRect(305, -100, 30, 94)
+        self.box = pg.FRect(345, -100, 30, 94)
         self.vx = 0.0
         self.vy = 0.0
         self.direction = 1
@@ -30,7 +34,7 @@ class Explorer:
 
     def rects(self, rect):
         c = self.cell
-        left = 52
+        left = SCENARIO_LEFT
         lo = max(0, int((rect.left - left) // c) - 1)
         hi = min(self.world.cfg.columns, int((rect.right - left) // c) + 2)
         low = max(0, int(-rect.bottom // c) - 1)
@@ -70,7 +74,7 @@ class Explorer:
         landed = False
 
         c = self.cell
-        current_col = max(0, min(self.world.cfg.columns - 1, int((self.box.centerx - 52) // c)))
+        current_col = max(0, min(self.world.cfg.columns - 1, int((self.box.centerx - SCENARIO_LEFT) // c)))
 
         if not auto_mode and keys is not None:
             # Manual player control
@@ -116,10 +120,10 @@ class Explorer:
                     self.place_cooldown = 0.32
                     self.recover_new_blocks()
         else:
-            # Autonomous AI navigation
-            if self.box.left < 54:
+            # Autonomous AI navigation within the scenario boundaries
+            if self.box.left < SCENARIO_LEFT + 2:
                 self.direction = 1
-            if self.box.right > 666:
+            if self.box.right > SCENARIO_RIGHT - 2:
                 self.direction = -1
 
             ahead = self.box.move(self.direction * 26, 0)
@@ -147,7 +151,7 @@ class Explorer:
                     self.box.left = r.right
                 self.vx = 0.0
 
-        self.box.clamp_ip(pg.FRect(52, -10000, 616, 20000))
+        self.box.clamp_ip(pg.FRect(SCENARIO_LEFT, -10000, SCENARIO_WIDTH, 20000))
         if abs(self.box.x - oldx) < 0.1 and auto_mode:
             self.stuck += dt
         else:

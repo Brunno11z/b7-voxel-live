@@ -79,9 +79,12 @@ class World:
         if self.phase=='building':
             if self.pending and self.cfg.pending_policy=='repair':
                 n=self.add(min(self.pending,8));self.pending-=n
-            self.credit+=dt*self.cfg.build_rate
-            n=int(self.credit)
-            if n:self.credit-=n;self.add(n)
+            self.credit=min(25.0,self.credit+dt*self.cfg.build_rate)
+            # Normal construction blocks are placed by the character passing over or jumping on blocks
+            # If no hero is attached (headless unit tests), place directly:
+            if getattr(self, 'hero', None) is None:
+                n=int(self.credit)
+                if n:self.credit-=n;self.add(n)
         elif self.phase=='defending':
             self.timer=max(0,self.timer-dt)
             if self.timer<=0:

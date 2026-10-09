@@ -1,8 +1,8 @@
 import math, random
 import pygame as pg
 
-SCENARIO_LEFT = 94
-SCENARIO_WIDTH = 532
+SCENARIO_LEFT = 52
+SCENARIO_WIDTH = 616
 SCENARIO_RIGHT = SCENARIO_LEFT + SCENARIO_WIDTH
 
 class Explorer:
@@ -16,7 +16,7 @@ class Explorer:
         return SCENARIO_WIDTH / self.world.cfg.columns
 
     def reset(self):
-        self.box = pg.FRect(345, -100, 30, 94)
+        self.box = pg.FRect(305, -100, 30, 94)
         self.vx = 0.0
         self.vy = 0.0
         self.direction = 1
@@ -30,6 +30,7 @@ class Explorer:
         self.coyote_timer = 0.0
         self.place_cooldown = 0.0
         self.last_col = -1
+        self.col_walk_dist = 0.0
         self.current_material = 0
 
     def rects(self, rect):
@@ -64,9 +65,9 @@ class Explorer:
 
         if keys is not None and not auto_mode:
             try:
-                manual_left = bool(keys[pg.K_LEFT] or keys[pg.K_a])
-                manual_right = bool(keys[pg.K_RIGHT] or keys[pg.K_d])
-                manual_jump = bool(keys[pg.K_UP] or keys[pg.K_w] or keys[pg.K_SPACE])
+                manual_left = bool(keys.get(pg.K_LEFT) or keys.get(pg.K_a))
+                manual_right = bool(keys.get(pg.K_RIGHT) or keys.get(pg.K_d))
+                manual_jump = bool(keys.get(pg.K_UP) or keys.get(pg.K_w) or keys.get(pg.K_SPACE))
             except Exception:
                 pass
 
@@ -106,21 +107,8 @@ class Explorer:
                 self.coyote_timer = 0.0
                 self.cooldown = 0.4
                 jumped = True
-
-            # Manual placement: as the character moves, place blocks
-            if self.place_cooldown <= 0 and (manual_left or manual_right or abs(self.vx) > 15.0):
-                target_col = current_col
-                ahead_col = current_col + self.direction
-                if 0 <= ahead_col < self.world.cfg.columns and self.world.heights[ahead_col] < self.world.heights[current_col]:
-                    target_col = ahead_col
-                target_row = max(0, self.world.heights[target_col])
-                if self.world.place_block(target_col):
-                    self.current_material = self.world.material(target_row)
-                    self.build_timer = 0.18
-                    self.place_cooldown = 0.32
-                    self.recover_new_blocks()
         else:
-            # Autonomous AI navigation within the scenario boundaries
+            # Autonomous AI navigation within the scenario boundaries (52 to 668)
             if self.box.left < SCENARIO_LEFT + 2:
                 self.direction = 1
             if self.box.right > SCENARIO_RIGHT - 2:
@@ -192,14 +180,49 @@ class Explorer:
         if self.coyote_timer > 0:
             self.coyote_timer -= dt
 
+        # Unified Building Rule (both Manual and Auto):
+        # Normal construction happens when:
+        # 1. Passing over a block ("passa por cima"): moving horizontally across columns
+        # 2. Jumping over a block ("pula pelo bloco"): during jump initiation or in-air
+        if self.world.running and self.world.phase == 'building' and self.world.credit >= 1.0 and self.place_cooldown <= 0:
+            should_place = False
+            target_col = current_col
+
+            # Rule 1: Passing over a block (walking horizontally across columns)
+            if self.grounded and abs(self.vx) > 15.0:
+                if current_col != self.last_col:
+                    should_place = True
+                    target_col = current_col
+                else:
+                    self.col_walk_dist += abs(dx)
+                    if self.col_walk_dist >= c * 0.75:
+                        should_place = True
+                        target_col = current_col
+                        self.col_walk_dist = 0.0
+
+            # Rule 2: Jumping over a block (pula pelo bloco)
+            elif jumped or (not self.grounded and self.vy < 0):
+                should_place = True
+                ahead_col = current_col + self.direction
+                if 0 <= ahead_col < self.world.cfg.columns and self.world.heights[ahead_col] <= self.world.heights[current_col]:
+                    target_col = ahead_col
+                else:
+                    target_col = current_col
+
+            if should_place:
+                if self.world.place_block(target_col):
+                    self.world.credit -= 1.0
+                    self.last_col = target_col
+                    self.place_cooldown = 0.20
+                    self.build_timer = 0.18
+                    self.current_material = self.world.material(max(0, self.world.heights[target_col] - 1))
+                    self.recover_new_blocks()
+
         # State determination
         self.state = ('celebrate' if self.world.phase in ('celebrating', 'goal') else
                       'land' if self.land_timer else
                       'build' if self.build_timer > 0 else
-                      'walk' if self.grounded else
-                      'jump' if self.vy < 0 else 'fall')
-
-        if self.grounded and self.cooldown > 0.45:
-            self.state = 'build'
+                      'walk' if self.grounded and abs(self.vx) > 5 else
+                      'jump' if self.vy < 0 else 'fall' if not self.grounded else 'idle')
 
         return jumped, landed

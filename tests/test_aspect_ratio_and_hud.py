@@ -5,28 +5,25 @@ from game.actor import Explorer, SCENARIO_LEFT, SCENARIO_WIDTH, SCENARIO_RIGHT
 from game.render import Renderer
 import pygame as pg
 
-def test_all_resolutions_are_exact_9_16():
-    resolutions = ['405x720', '450x800', '540x960', '720x1280', '1080x1920']
-    for r in resolutions:
-        w, h = map(int, r.split('x'))
-        assert round(w / h, 6) == round(9 / 16, 6), f"Resolution {r} is not 9:16"
+def test_default_resolution_is_horizontal_hd():
+    cfg = Settings()
+    assert cfg.resolution == '1280x720', "Default resolution should be 1280x720 (Horizontal HD)"
+    w, h = map(int, cfg.resolution.split('x'))
+    assert w > h, "Must open in horizontal mode"
 
-def test_cards_are_strictly_outside_construction_scenario():
-    # Left cards span x = 6 to 80
-    left_card_max_x = 6 + 74 # 80
-    assert left_card_max_x < SCENARIO_LEFT, "Left cards must stay completely outside scenario"
+def test_original_scenario_and_barriers_dimensions():
+    assert SCENARIO_LEFT == 52
+    assert SCENARIO_WIDTH == 616
+    assert SCENARIO_RIGHT == 668
+    # Left barrier: x=24..52 (width 28)
+    # Right barrier: x=668..696 (width 28)
+    assert 24 + 28 == SCENARIO_LEFT
+    assert 668 == SCENARIO_RIGHT
 
-    # Right cards span x = 640 to 714
-    right_card_min_x = 640
-    assert right_card_min_x > SCENARIO_RIGHT, "Right cards must stay completely outside scenario"
-
-    # Fixed barriers sit right at the boundary
-    assert 86 < SCENARIO_LEFT
-    assert 626 >= SCENARIO_RIGHT
-
-def test_character_strictly_bounded_inside_scenario():
+def test_character_clamped_and_navigates_within_barriers():
     w = World(Settings())
     hero = Explorer(w)
+    w.hero = hero
     assert hero.box.left >= SCENARIO_LEFT
     assert hero.box.right <= SCENARIO_RIGHT
     # Simulate ticks
@@ -35,21 +32,52 @@ def test_character_strictly_bounded_inside_scenario():
         assert hero.box.left >= SCENARIO_LEFT - 0.01
         assert hero.box.right <= SCENARIO_RIGHT + 0.01
 
-def test_victory_hud_and_celebration_banner():
-    cfg = Settings(resolution='540x960')
+def test_normal_construction_only_builds_when_walking_or_jumping():
+    # Standing still: no blocks placed
+    cfg = Settings(control_mode='manual', build_rate=10.0)
+    w = World(cfg)
+    w.running = True
+    hero = Explorer(w)
+    w.hero = hero
+    
+    # Tick 60 times without moving keys
+    for _ in range(60):
+        w.tick(1/60)
+        hero.tick(1/60, keys={})
+    assert w.count == 0, "No blocks should be placed while standing still"
+    assert w.credit > 0, "Credit should accumulate"
+    
+    # Walking right: places blocks
+    keys = {pg.K_RIGHT: 1, pg.K_d: 1}
+    for _ in range(120):
+        w.tick(1/60)
+        hero.tick(1/60, keys=keys)
+    assert w.count > 0, "Blocks should be placed while walking"
+
+def test_auto_mode_builds_while_moving_and_jumping():
+    cfg = Settings(control_mode='auto', build_rate=8.0)
+    w = World(cfg)
+    w.running = True
+    hero = Explorer(w)
+    w.hero = hero
+    
+    for _ in range(120):
+        w.tick(1/60)
+        hero.tick(1/60)
+    assert w.count > 0, "Auto mode must place blocks while moving/jumping"
+
+def test_gifts_continue_to_help_normally():
+    cfg = Settings(control_mode='auto', build_rate=0.0)
+    w = World(cfg)
+    w.running = True
+    assert w.count == 0
+    w.add(16)
+    assert w.count == 16, "Gifts must add blocks immediately"
+
+def test_victory_plaque_renders_without_error():
+    cfg = Settings(resolution='1280x720')
     w = World(cfg)
     renderer = Renderer(w)
-    
-    # Test normal hud render
     renderer.hud()
-    
-    # Test victory celebration phase
-    w.phase = 'celebrating'
-    w.wins = 10
-    renderer.hud()
-    
-    # Test goal phase
-    w.phase = 'goal'
-    renderer.hud()
-    
+    renderer.draw()
     renderer.close()

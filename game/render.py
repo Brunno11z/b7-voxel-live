@@ -64,6 +64,7 @@ class Renderer:
         self.avatars = AvatarCache()
         self.avatar_surfaces = OrderedDict()
         self.hero = Explorer(world)
+        self.world.hero = self.hero
         self.hero_bubble = None
 
         self.camera = 0.0
@@ -114,8 +115,17 @@ class Renderer:
         cfg = self.world.cfg
         value = (cfg.resolution, cfg.borderless)
         if value != self.display_config:
-            size = tuple(map(int, cfg.resolution.split('x')))
-            self.screen = pg.display.set_mode(size, pg.NOFRAME if cfg.borderless else pg.RESIZABLE)
+            w, h = map(int, cfg.resolution.split('x'))
+            # Safety check: if running on desktop and requested height exceeds screen, fit safely without clipping
+            try:
+                info = pg.display.Info()
+                if info.current_h > 0 and h >= info.current_h and not cfg.borderless:
+                    factor = (info.current_h - 85) / h
+                    w = int(w * factor)
+                    h = int(h * factor)
+            except Exception:
+                pass
+            self.screen = pg.display.set_mode((w, h), pg.NOFRAME if cfg.borderless else pg.RESIZABLE)
             self.display_config = value
 
     def text(self, text, size, color=(255, 255, 255), center=None, pos=None, outline=False):
@@ -335,73 +345,6 @@ class Renderer:
         for p in self.particles:
             pg.draw.rect(self.canvas, p[5], (p[0], p[1], p[6], p[6]))
 
-    def draw_fixed_barriers(self):
-        """Draws fixed 2.5D containment barriers on the screen edges (remains fixed on screen)."""
-        if not getattr(self.world.cfg, 'show_barriers', True):
-            return
-        top_y = 170
-        bot_y = 1280
-        bw = 8
-        # Fixed barriers strictly bordering the scenario: Left=86..94, Right=626..634
-        for side, bx in [(0, 86), (1, 626)]:
-            beacon_pulse = (math.sin(self.time * 8) + 1) * 0.5
-            beacon_color = (255, int(140 + 100 * beacon_pulse), 40)
-            pg.draw.rect(self.canvas, (28, 34, 42), (bx - 1, top_y, bw + 2, 14), border_radius=3)
-            pg.draw.circle(self.canvas, beacon_color, (bx + bw // 2, top_y + 7), 5)
-            pg.draw.circle(self.canvas, (255, 255, 210), (bx + bw // 2, top_y + 7), 2)
-
-            y = top_y + 14
-            seg = 0
-            while y < bot_y:
-                sh = min(28, bot_y - y)
-                is_hazard = (seg % 3 == 1)
-                col = (245, 185, 30) if is_hazard else (42, 48, 56)
-                pg.draw.rect(self.canvas, col, (bx, y, bw, sh))
-                pg.draw.line(self.canvas, (18, 20, 24), (bx, y), (bx + bw, y), 1)
-                y += sh
-                seg += 1
-
-    def draw_hero_bubble(self):
-        """Floating 2.5D gift emoji balloon above the hero during actions."""
-        cfg = self.world.cfg
-        if cfg.control_mode == 'manual' or not getattr(cfg, 'show_thought_bubble', True):
-            self.hero_bubble = None
-            return
-        if not self.hero_bubble:
-            return
-        age = self.time - self.hero_bubble['start']
-        if age > 1.8:
-            self.hero_bubble = None
-            return
-        fade = min(1.0, (1.8 - age) / 0.4) if age > 1.4 else 1.0
-        float_y = age * 28.0
-        bx = self.hero.box.centerx
-        by = self.ground_y() + self.hero.box.top - 58 - float_y
-
-        bw, bh = 76, 42
-        bubble_rect = pg.Rect(int(bx - bw // 2), int(by), bw, bh)
-        s = pg.Surface((bw + 8, bh + 14), pg.SRCALPHA)
-        alpha = int(240 * fade)
-
-        pg.draw.rect(s, (255, 255, 255, alpha), (4, 0, bw, bh), border_radius=12)
-        pg.draw.rect(s, (25, 45, 55, alpha), (4, 0, bw, bh), width=2, border_radius=12)
-        pg.draw.polygon(s, (255, 255, 255, alpha), [(bw // 2, bh), (bw // 2 + 8, bh), (bw // 2 + 2, bh + 10)])
-        pg.draw.line(s, (25, 45, 55, alpha), (bw // 2, bh), (bw // 2 + 2, bh + 10), 2)
-        pg.draw.line(s, (25, 45, 55, alpha), (bw // 2 + 8, bh), (bw // 2 + 2, bh + 10), 2)
-
-        # 🎁 Gift box icon
-        gift_scaled = pg.transform.scale(self.gift_icon, (24, 24))
-        gift_scaled.set_alpha(alpha)
-        s.blit(gift_scaled, (10, 9))
-
-        action_key = self.hero_bubble['action']
-        if action_key in self.icons:
-            act_icon = pg.transform.scale(self.icons[action_key], (24, 24))
-            act_icon.set_alpha(alpha)
-            s.blit(act_icon, (42, 9))
-
-        self.canvas.blit(s, (bubble_rect.x - 4, bubble_rect.y))
-
     def draw_effects(self):
         """All powers, tornado, and gift effects rendered in rich 2.5D."""
         for e in list(self.effects):
@@ -539,112 +482,164 @@ class Renderer:
                     draw_iso_cube_at(self.canvas, dx_pos, dy_pos, 10, 10, 6, d_col,
                                      tuple(int(c * 0.8) for c in d_col), tuple(int(c * 0.6) for c in d_col))
 
+
+    def draw_fixed_barriers(self):
+        """Draws fixed 2.5D containment barriers on the screen edges (remains fixed on screen)."""
+        if not getattr(self.world.cfg, 'show_barriers', True):
+            return
+        top_y = 178
+        bot_y = 1280
+        bw = 28
+        # Left barrier: x=24 to 52. Right barrier: x=668 to 696.
+        for side, bx in [(0, 24), (1, 668)]:
+            # Beacon cap at the top
+            beacon_pulse = (math.sin(self.time * 8) + 1) * 0.5
+            beacon_color = (255, int(100 + 120 * beacon_pulse), 40)
+            pg.draw.rect(self.canvas, (32, 38, 46), (bx - 2, top_y, bw + 4, 18), border_radius=4)
+            pg.draw.circle(self.canvas, beacon_color, (bx + bw // 2, top_y + 9), 6)
+            pg.draw.circle(self.canvas, (255, 255, 200), (bx + bw // 2, top_y + 9), 3)
+
+            # Voxel pillar segments
+            y = top_y + 18
+            seg = 0
+            while y < bot_y:
+                sh = min(36, bot_y - y)
+                is_hazard = (seg % 4 == 1)
+
+                if is_hazard:
+                    base = (245, 185, 30)
+                    pg.draw.rect(self.canvas, base, (bx, y, bw, sh))
+                    for k in range(-bw, sh, 14):
+                        pts = [(bx, max(y, y + k)), (bx + bw, max(y, y + k + bw)),
+                               (bx + bw, min(y + sh, y + k + bw + 6)), (bx, min(y + sh, y + k + 6))]
+                        pg.draw.polygon(self.canvas, (35, 37, 42), pts)
+                else:
+                    base = (46, 52, 60)
+                    pg.draw.rect(self.canvas, base, (bx, y, bw, sh))
+                    pg.draw.rect(self.canvas, (55, 62, 72), (bx + 4, y + 4, bw - 8, sh - 8))
+
+                pg.draw.line(self.canvas, (110, 125, 140) if not is_hazard else (255, 235, 150), (bx, y), (bx + bw - 1, y), 2)
+                pg.draw.line(self.canvas, (20, 24, 28), (bx, y + sh - 1), (bx + bw - 1, y + sh - 1), 2)
+                pg.draw.line(self.canvas, (18, 20, 24), (bx, y), (bx, y + sh), 2)
+                pg.draw.line(self.canvas, (18, 20, 24), (bx + bw, y), (bx + bw, y + sh), 2)
+                y += sh
+                seg += 1
+
+    def draw_hero_bubble(self):
+        """Floating 2.5D gift emoji balloon above the hero during actions."""
+        cfg = self.world.cfg
+        if cfg.control_mode == 'manual' or not getattr(cfg, 'show_thought_bubble', True):
+            self.hero_bubble = None
+            return
+        if not self.hero_bubble:
+            return
+        age = self.time - self.hero_bubble['start']
+        if age > 1.8:
+            self.hero_bubble = None
+            return
+
+        alpha = int(255 * (1.0 - max(0.0, (age - 1.2) / 0.6)))
+        float_y = math.sin(age * 5.0) * 4.0
+        bx = int(self.hero.box.centerx)
+        by = int(self.ground_y() + self.hero.box.top - 40 + float_y)
+
+        bubble_surf = pg.Surface((44, 40), pg.SRCALPHA)
+        pg.draw.rect(bubble_surf, (255, 255, 255, min(240, alpha)), (0, 0, 44, 32), border_radius=12)
+        pg.draw.polygon(bubble_surf, (255, 255, 255, min(240, alpha)), [(16, 32), (28, 32), (22, 39)])
+        action_key = self.hero_bubble.get('action', 'BUILD')
+        badge = self.get_action_badge(action_key, cfg)
+        if badge:
+            scaled_badge = pg.transform.scale(badge, (22, 22))
+            bubble_surf.blit(scaled_badge, (11, 5))
+        self.canvas.blit(bubble_surf, (bx - 22, by))
+
     def hud(self):
         w = self.world
         cfg = w.cfg
 
-        # 🏆 Top Victory Header (y = 48 to 112)
-        # Positioned safely at the top with guaranteed visibility and clear 'VITÓRIA' text
-        border_gold = (255, 215, 60)
-        pg.draw.rect(self.canvas, (10, 12, 18), (180, 48, 360, 64), border_radius=16)
-        pg.draw.rect(self.canvas, border_gold, (180, 48, 360, 64), width=2, border_radius=16)
-        self.text('🏆 VITÓRIA', 24, (255, 225, 70), center=(360, 70), outline=True)
-        self.text(f'{w.wins} / {cfg.goal} METAS CONCLUÍDAS', 14, (225, 240, 255), center=(360, 95), outline=True)
+        # 🏆 Placa de Vitórias original como antes (b7_voxel_hud_actions_preview.png)
+        color = (168, 56, 66) if w.wins < 0 else (202, 161, 35)
+        pg.draw.rect(self.canvas, (255, 245, 173), (239, 69, 242, 61), border_radius=23)
+        pg.draw.rect(self.canvas, color, (243, 72, 234, 54), border_radius=20)
+        self.text(f'VITÓRIAS {w.wins}/{cfg.goal}', 24, center=(360, 99))
 
-        # Progress bar (y = 122 to 146)
-        pg.draw.rect(self.canvas, (14, 18, 24), (130, 122, 460, 24), border_radius=12)
-        pg.draw.rect(self.canvas, (40, 60, 80), (130, 122, 460, 24), width=1, border_radius=12)
-        fill = int(454 * w.progress)
+        # Barra de Progresso
+        pg.draw.rect(self.canvas, (41, 109, 130), (100, 151, 520, 29), border_radius=15)
+        fill = int(514 * w.progress)
         if fill:
-            pg.draw.rect(self.canvas, (255, 215, 50), (133, 125, max(10, fill), 18), border_radius=9)
-        self.text(f'{w.progress * 100:.0f}%', 14, center=(360, 134), outline=True)
+            pg.draw.rect(self.canvas, (255, 213, 55), (103, 154, max(10, fill), 23), border_radius=12)
+        if fill > 20:
+            pg.draw.line(self.canvas, (255, 235, 125), (111, 159), (100 + fill - 5, 159), 3)
+        self.text(f'{w.progress * 100:.0f}%', 16, center=(360, 165), outline=True)
         if w.pending:
-            self.text(f'+{w.pending} blocos aguardando', 13, (180, 230, 255), center=(360, 156), outline=True)
+            self.text(f'+{w.pending} blocos aguardando', 17, center=(360, 200), outline=True)
 
-        # Defending phase alert
         if w.phase == 'defending':
-            pg.draw.rect(self.canvas, (156, 35, 45), (200, 172, 320, 96), border_radius=16)
-            pg.draw.rect(self.canvas, (255, 90, 100), (200, 172, 320, 96), width=2, border_radius=16)
-            self.text('DEFENDA A CONSTRUÇÃO!', 16, center=(360, 195), outline=True)
-            self.text(str(math.ceil(w.timer)), 38, center=(360, 230), outline=True)
-            self.text('SEGUNDOS', 11, center=(360, 255), outline=True)
+            pg.draw.rect(self.canvas, (156, 43, 51), (219, 284, 282, 114), border_radius=12)
+            self.text('DEFENDA A CONSTRUÇÃO!', 17, center=(360, 308))
+            self.text(str(math.ceil(w.timer)), 44, center=(360, 348))
+            self.text('SEGUNDOS', 12, center=(360, 379))
         elif w.phase in ('celebrating', 'goal'):
-            # Massive celebratory victory banner at top/center
-            pg.draw.rect(self.canvas, (10, 24, 18), (120, 172, 480, 84), border_radius=18)
-            pg.draw.rect(self.canvas, (255, 215, 50), (120, 172, 480, 84), width=3, border_radius=18)
-            self.text('🏆 VITÓRIA! 🏆', 28, (255, 240, 90), center=(360, 200), outline=True)
-            sub = f'META DE {cfg.goal} VITÓRIAS CONCLUÍDA!' if w.wins >= cfg.goal else 'RODADA VENCIDA COM SUCESSO!'
-            self.text(sub, 15, (200, 255, 220), center=(360, 232), outline=True)
+            pg.draw.rect(self.canvas, (28, 124, 106), (187, 226, 346, 110), border_radius=14)
+            self.text('META CONCLUÍDA!' if w.wins >= cfg.goal else 'CONSTRUÇÃO DEFENDIDA!', 21, center=(360, 257))
+            self.text('Nova rodada em instantes' if w.phase == 'celebrating' else 'Inicie pelo painel', 17, center=(360, 305))
 
-        # Side Gift Cards: 100% OUTSIDE the construction scenario (x=6..80 and x=640..714)
-        # with subtle animated gaming RGB contour
+        # Cartões de Ações / Presentes (estilo b7_voxel_hud_actions_preview.png com botões quadrados, bordas neon e foto/emoji customizável)
         for side, actions in enumerate([ACTIONS[:5], ACTIONS[5:]]):
-            bx = 6 if side == 0 else 640
-            bw = 74
-            bh = 90
-            cx = bx + bw // 2
+            cx = 40 if side == 0 else 680
+            bx = cx - 32
+            bw = 64
+            bh = 76
 
             for i, key in enumerate(actions):
-                by = 280 + i * 98
-                base_t = self.time * 0.45 + i * 0.12 + (0.5 if side == 1 else 0.0)
+                by = 242 + i * 82
+                base_t = self.time * 0.5 + i * 0.15 + (0.5 if side == 1 else 0.0)
 
-                # Four corners of RGB cycling chromatic gradient
-                c_tl = (int(128 + 127 * math.sin((base_t) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.33) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.67) * math.tau)))
-                c_tr = (int(128 + 127 * math.sin((base_t + 0.25) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.58) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.92) * math.tau)))
-                c_br = (int(128 + 127 * math.sin((base_t + 0.50) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.83) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.17) * math.tau)))
-                c_bl = (int(128 + 127 * math.sin((base_t + 0.75) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.08) * math.tau)),
-                        int(128 + 127 * math.sin((base_t + 0.42) * math.tau)))
+                # Fundo preto puro para máximo contraste
+                pg.draw.rect(self.canvas, (10, 12, 16), (bx, by, bw, bh), border_radius=10)
 
-                # Pure dark background
-                pg.draw.rect(self.canvas, (8, 8, 12), (bx, by, bw, bh), border_radius=10)
+                # Contorno neon gamer com leve pulso RGB
+                rgb_r = int(128 + 127 * math.sin(base_t * math.tau))
+                rgb_g = int(128 + 127 * math.sin((base_t + 0.33) * math.tau))
+                rgb_b = int(128 + 127 * math.sin((base_t + 0.67) * math.tau))
+                border_color = (80, 240, 120) if side == 0 else (255, 75, 95)
+                neon_color = (
+                    (border_color[0] * 3 + rgb_r) // 4,
+                    (border_color[1] * 3 + rgb_g) // 4,
+                    (border_color[2] * 3 + rgb_b) // 4,
+                )
+                pg.draw.rect(self.canvas, neon_color, (bx, by, bw, bh), width=2, border_radius=10)
 
-                # Subtle soft outer RGB glow
-                glow_col = tuple(c // 4 for c in c_tl)
-                pg.draw.rect(self.canvas, glow_col, (bx - 2, by - 2, bw + 4, bh + 4), width=1, border_radius=12)
-
-                # RGB contour perimeter
-                pg.draw.line(self.canvas, c_tl, (bx + 8, by), (bx + bw - 8, by), 2)
-                pg.draw.line(self.canvas, c_tr, (bx + bw, by + 8), (bx + bw, by + bh - 8), 2)
-                pg.draw.line(self.canvas, c_br, (bx + bw - 8, by + bh), (bx + 8, by + bh), 2)
-                pg.draw.line(self.canvas, c_bl, (bx, by + bh - 8), (bx, by + 8), 2)
-                pg.draw.circle(self.canvas, c_tl, (bx + 8, by + 8), 8, width=2)
-                pg.draw.circle(self.canvas, c_tr, (bx + bw - 8, by + 8), 8, width=2)
-                pg.draw.circle(self.canvas, c_br, (bx + bw - 8, by + bh - 8), 8, width=2)
-                pg.draw.circle(self.canvas, c_bl, (bx + 8, by + bh - 8), 8, width=2)
-
-                # 🎁 Emoji/Foto customizada no topo da ação
+                # Badge / Emoji ou foto customizada no topo
                 badge_surf = self.get_action_badge(key, cfg)
                 bw_sz, bh_sz = badge_surf.get_size()
-                self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + 4))
+                self.canvas.blit(badge_surf, (cx - bw_sz // 2, by + 3))
 
-                # Ícone 2.5D da ação centralizado dentro do botão quadrado
+                # Ícone da ação
                 caption, url = gift_caption(key, cfg, self.gift_catalog)
                 self.avatars.request(url)
                 icon = self.avatar_surfaces.get(url, self.icons[key])
-                self.canvas.blit(pg.transform.scale(icon, (36, 36)), (cx - 18, by + 26))
+                self.canvas.blit(pg.transform.scale(icon, (30, 30)), (cx - 15, by + 22))
 
+                # Título da ação
                 bound = any(m.action == key for m in cfg.mappings)
                 title = caption if bound else LABELS.get(key, key)
-                if 11 not in self.fonts:
-                    self.fonts[11] = pg.font.Font(str(self.assets / 'font.ttf'), 11)
-                font = self.fonts[11]
-                while len(title) > 1 and font.size(title)[0] > 68:
+                if 10 not in self.fonts:
+                    self.fonts[10] = pg.font.Font(str(self.assets / 'font.ttf'), 10)
+                font = self.fonts[10]
+                while len(title) > 1 and font.size(title)[0] > 60:
                     title = title[:-1]
-                self.text(title.upper(), 10, center=(cx, by + 67), outline=True)
+                self.text(title.upper(), 9, center=(cx, by + 55), outline=True)
+
+                # Valor (+8, +16, etc.)
                 sign = '+' if side == 0 else '-'
                 value = f'{sign}{cfg.amounts[key]}'
                 if key in ('WIN', 'LOSE'):
                     value += ' WIN'
-                self.text(value, 13, (110, 255, 140) if side == 0 else (255, 120, 130), center=(cx, by + 80), outline=True)
+                val_color = (112, 255, 139) if side == 0 else (255, 131, 147)
+                self.text(value, 11, val_color, center=(cx, by + 67), outline=True)
 
-        # Supporter toast
+        # Toasts de apoiadores
         if self.current_toast and w.phase not in ('celebrating', 'goal', 'defending'):
             e = self.current_toast
             positive = e['action'] in POSITIVE
@@ -687,12 +682,56 @@ class Renderer:
             offset = int(math.sin(self.time * 90) * self.shake * 18 * self.world.cfg.shake)
             self.canvas.scroll(dx=offset)
         self.hud()
+
         sw, sh = self.screen.get_size()
         scale = min(sw / 720, sh / 1280)
-        size = (max(1, int(720 * scale)), max(1, int(1280 * scale)))
-        self.screen.fill((10, 10, 14))
-        self.screen.blit(pg.transform.scale(self.canvas, size), ((sw - size[0]) // 2, (sh - size[1]) // 2))
+        tw = max(1, int(720 * scale))
+        th = max(1, int(1280 * scale))
+        ox = (sw - tw) // 2
+        oy = (sh - th) // 2
+
+        self.screen.fill((14, 16, 22))
+
+        # Modo Horizontal: desenha painéis laterais gamers com atalhos e informações da live
+        if ox > 60:
+            # Painel esquerdo
+            pg.draw.rect(self.screen, (20, 24, 32), (0, 0, ox - 4, sh))
+            pg.draw.line(self.screen, (40, 50, 65), (ox - 4, 0), (ox - 4, sh), 2)
+            self.draw_screen_text('B7 VOXEL LIVE', 20, (255, 215, 60), center=((ox - 4) // 2, 45))
+            mode_txt = 'MODO: MANUAL' if self.world.cfg.control_mode == 'manual' else 'MODO: AUTOMÁTICO'
+            mode_col = (100, 230, 255) if self.world.cfg.control_mode == 'manual' else (120, 255, 140)
+            self.draw_screen_text(mode_txt, 14, mode_col, center=((ox - 4) // 2, 85))
+            self.draw_screen_text('CONTROLES:', 13, (180, 195, 215), center=((ox - 4) // 2, 135))
+            self.draw_screen_text('A/D / Setas : Mover', 12, (220, 230, 240), center=((ox - 4) // 2, 165))
+            self.draw_screen_text('Espaço / Cima : Pular', 12, (220, 230, 240), center=((ox - 4) // 2, 190))
+            self.draw_screen_text('M : Alternar Modo', 12, (220, 230, 240), center=((ox - 4) // 2, 215))
+            self.draw_screen_text('Construção ao passar/pular', 11, (255, 215, 80), center=((ox - 4) // 2, 250))
+
+            # Painel direito
+            rx = ox + tw + 4
+            rw = sw - rx
+            if rw > 0:
+                pg.draw.rect(self.screen, (20, 24, 32), (rx, 0, rw, sh))
+                pg.draw.line(self.screen, (40, 50, 65), (rx, 0), (rx, sh), 2)
+                self.draw_screen_text('STATUS DA LIVE', 18, (255, 215, 60), center=(rx + rw // 2, 45))
+                self.draw_screen_text(f'RODADA {self.world.round}', 14, (200, 230, 255), center=(rx + rw // 2, 85))
+                self.draw_screen_text(f'VITÓRIAS: {self.world.wins}/{self.world.cfg.goal}', 14, (120, 255, 140), center=(rx + rw // 2, 120))
+                self.draw_screen_text(f'PROGRESSO: {self.world.progress*100:.0f}%', 14, (255, 220, 80), center=(rx + rw // 2, 155))
+                if self.world.pending:
+                    self.draw_screen_text(f'PENDENTES: +{self.world.pending}', 13, (120, 220, 255), center=(rx + rw // 2, 190))
+                self.draw_screen_text(f'BLOCOS: {self.world.count}/{self.world.capacity}', 12, (180, 195, 215), center=(rx + rw // 2, 225))
+
+        self.screen.blit(pg.transform.scale(self.canvas, (tw, th)), (ox, oy))
         pg.display.flip()
+
+    def draw_screen_text(self, text, size, color, center):
+        key = (f'screen_{text}', size, color)
+        if key not in self.text_cache:
+            if size not in self.fonts:
+                self.fonts[size] = pg.font.Font(str(self.assets / 'font.ttf'), size)
+            self.text_cache[key] = self.fonts[size].render(str(text), True, color)
+        surf = self.text_cache[key]
+        self.screen.blit(surf, (center[0] - surf.get_width() // 2, center[1] - surf.get_height() // 2))
 
     def close(self):
         self.avatars.closed.set()

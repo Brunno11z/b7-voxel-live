@@ -11,7 +11,7 @@
   "allow_negative": true,
   "pending_policy": "repair",
   "auto_restart": true,
-  "resolution": "720x1280",
+  "resolution": "1280x720",
   "borderless": false,
   "show_barriers": true,
   "skin_preset": "default",
